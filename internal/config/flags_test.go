@@ -8,6 +8,7 @@ func TestBuildListCommandConfig(t *testing.T) {
 	cfg, err := BuildListCommandConfig(ListCommandOptions{
 		Category:    "movie",
 		Metric:      "userscore",
+		Source:      "auto",
 		Year:        "2011:2014",
 		Network:     "netflix,max",
 		Genre:       "drama,thriller",
@@ -24,6 +25,9 @@ func TestBuildListCommandConfig(t *testing.T) {
 
 	if cfg.Task.Category != "movie" || cfg.Task.Metric != "userscore" {
 		t.Fatalf("unexpected task: %+v", cfg.Task)
+	}
+	if cfg.Source != CrawlSourceAuto {
+		t.Fatalf("expected source auto, got %q", cfg.Source)
 	}
 	if cfg.Task.MaxPages != 3 || !cfg.Debug || cfg.MaxRetries != 2 {
 		t.Fatalf("unexpected config: %+v", cfg)
@@ -56,6 +60,7 @@ func TestBuildListCommandConfigRejectsInvalidValues(t *testing.T) {
 		{Category: "movie", Metric: "metascore", Pages: 1, DBPath: "output/test.db", Platform: "pc"},
 		{Category: "tv", Metric: "metascore", Pages: 1, DBPath: "output/test.db", ReleaseType: "coming-soon"},
 		{Category: "game", Metric: "metascore", Pages: 1, DBPath: "output/test.db", Network: "netflix"},
+		{Category: "game", Metric: "metascore", Source: "xml", Pages: 1, DBPath: "output/test.db"},
 	}
 
 	for _, tt := range tests {
@@ -92,6 +97,28 @@ func TestBuildReviewCommandConfigParsesSentimentAndSort(t *testing.T) {
 
 	if cfg.Task.Sentiment != "positive" || cfg.Task.Sort != "score" {
 		t.Fatalf("unexpected sentiment/sort: %+v", cfg.Task)
+	}
+	if cfg.Task.WorkHref != "https://www.metacritic.com/game/baldurs-gate-3" {
+		t.Fatalf("unexpected normalized work href: %q", cfg.Task.WorkHref)
+	}
+}
+
+func TestBuildDetailCommandConfigParsesSource(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := BuildDetailCommandConfig(DetailCommandOptions{
+		Category:    "game",
+		WorkHref:    "/game/baldurs-gate-3",
+		Source:      "auto",
+		Limit:       2,
+		Concurrency: 3,
+		DBPath:      "output/test.db",
+	})
+	if err != nil {
+		t.Fatalf("BuildDetailCommandConfig() error = %v", err)
+	}
+	if cfg.Source != CrawlSourceAuto {
+		t.Fatalf("expected source auto, got %q", cfg.Source)
 	}
 	if cfg.Task.WorkHref != "https://www.metacritic.com/game/baldurs-gate-3" {
 		t.Fatalf("unexpected normalized work href: %q", cfg.Task.WorkHref)

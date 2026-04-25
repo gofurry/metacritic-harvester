@@ -14,11 +14,13 @@ import (
 func newCrawlDetailCommand() *cobra.Command {
 	return newCrawlDetailCommandWithRunner(func(ctx context.Context, cfg config.DetailCommandConfig) (app.DetailRunResult, error) {
 		service := app.NewDetailService(app.DetailServiceConfig{
-			BaseURL:    config.DefaultBaseURL,
-			DBPath:     cfg.DBPath,
-			Debug:      cfg.Debug,
-			MaxRetries: cfg.MaxRetries,
-			ProxyURLs:  cfg.ProxyURLs,
+			BaseURL:        config.DefaultBaseURL,
+			BackendBaseURL: config.DefaultBackendBaseURL,
+			Source:         cfg.Source,
+			DBPath:         cfg.DBPath,
+			Debug:          cfg.Debug,
+			MaxRetries:     cfg.MaxRetries,
+			ProxyURLs:      cfg.ProxyURLs,
 		})
 		return service.Run(ctx, cfg.Task)
 	})
@@ -37,9 +39,10 @@ func newCrawlDetailCommandWithRunner(runner func(context.Context, config.DetailC
 			}
 			fmt.Fprintf(
 				cmd.ErrOrStderr(),
-				"crawl detail starting: category=%s work_href=%s limit=%d force=%t concurrency=%d db=%s\n",
+				"crawl detail starting: category=%s work_href=%s source=%s limit=%d force=%t concurrency=%d db=%s\n",
 				cfg.Task.Category,
 				cfg.Task.WorkHref,
+				cfg.Source,
 				cfg.Task.Limit,
 				cfg.Task.Force,
 				cfg.Concurrency,
@@ -100,6 +103,7 @@ func newCrawlDetailCommandWithRunner(runner func(context.Context, config.DetailC
 
 	cmd.Flags().StringVar(&opts.Category, "category", "", "Optional category to crawl: game|movie|tv")
 	cmd.Flags().StringVar(&opts.WorkHref, "work-href", "", "Optional exact work href to crawl")
+	cmd.Flags().StringVar(&opts.Source, "source", string(config.CrawlSourceAPI), "Detail source: api|html|auto")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of detail pages to crawl; 0 means no limit")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "Refresh details that were already fetched successfully")
 	cmd.Flags().IntVar(&opts.Concurrency, "concurrency", 1, "Maximum number of detail pages to fetch concurrently")

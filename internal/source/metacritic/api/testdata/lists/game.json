@@ -1,0 +1,30 @@
+{
+  "data": {
+    "totalResults": 1,
+    "items": [
+      {
+        "title": "Baldur's Gate 3",
+        "slug": "baldurs-gate-3",
+        "releaseDate": "2023-08-03",
+        "criticScoreSummary": {
+          "score": "96",
+          "reviewCount": 119
+        },
+        "userScore": {
+          "score": "8.9",
+          "reviewCount": 1000
+        },
+        "image": {
+          "path": "/games/bg3.jpg"
+        }
+      }
+    ]
+  },
+  "links": {
+    "last": {
+      "meta": {
+        "pageNum": 2
+      }
+    }
+  }
+}

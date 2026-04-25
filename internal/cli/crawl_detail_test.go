@@ -34,6 +34,7 @@ func TestCrawlDetailCommandParsesFlags(t *testing.T) {
 	cmd.SetArgs([]string{
 		"--category=game",
 		"--work-href=/game/test-game",
+		"--source=auto",
 		"--limit=3",
 		"--force",
 		"--concurrency=4",
@@ -55,6 +56,9 @@ func TestCrawlDetailCommandParsesFlags(t *testing.T) {
 	if captured.Task.Limit != 3 || !captured.Task.Force {
 		t.Fatalf("unexpected task options: %+v", captured.Task)
 	}
+	if captured.Source != "auto" {
+		t.Fatalf("expected source auto, got %q", captured.Source)
+	}
 	if captured.Task.Concurrency != 4 || captured.Concurrency != 4 {
 		t.Fatalf("unexpected concurrency: task=%d config=%d", captured.Task.Concurrency, captured.Concurrency)
 	}
@@ -62,7 +66,7 @@ func TestCrawlDetailCommandParsesFlags(t *testing.T) {
 		t.Fatalf("unexpected network options: retries=%d proxies=%+v", captured.MaxRetries, captured.ProxyURLs)
 	}
 	normalizedOutput := strings.ReplaceAll(out.String(), "\\", "/")
-	if !strings.Contains(normalizedOutput, "crawl detail starting: category=game work_href=https://www.metacritic.com/game/test-game limit=3 force=true concurrency=4 db=output/detail.db") {
+	if !strings.Contains(normalizedOutput, "crawl detail starting: category=game work_href=https://www.metacritic.com/game/test-game source=auto limit=3 force=true concurrency=4 db=output/detail.db") {
 		t.Fatalf("unexpected start output: %q", out.String())
 	}
 	if !strings.Contains(normalizedOutput, "crawl detail completed: run_id=detail-run-1 total=3 processed=3 fetched=2 skipped=1 failed=0 recovered_running=1 details_upserted=2") {

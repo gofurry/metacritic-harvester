@@ -1,0 +1,27 @@
+{
+  "data": {
+    "totalResults": 1,
+    "items": [
+      {
+        "title": "BoJack Horseman",
+        "slug": "bojack-horseman",
+        "releaseDate": "2014-08-22",
+        "criticScoreSummary": {
+          "score": "82",
+          "reviewCount": 30
+        },
+        "userScore": {
+          "score": "8.8",
+          "reviewCount": 900
+        }
+      }
+    ]
+  },
+  "links": {
+    "last": {
+      "meta": {
+        "pageNum": 1
+      }
+    }
+  }
+}

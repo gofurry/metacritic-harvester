@@ -8,6 +8,7 @@ const DefaultBackendBaseURL = "https://backend.metacritic.com"
 type ListCommandOptions struct {
 	Category    string
 	Metric      string
+	Source      string
 	Year        string
 	Platform    string
 	Network     string
@@ -22,6 +23,7 @@ type ListCommandOptions struct {
 
 type ListCommandConfig struct {
 	Task       domain.ListTask
+	Source     CrawlSource
 	DBPath     string
 	Debug      bool
 	MaxRetries int
@@ -31,6 +33,7 @@ type ListCommandConfig struct {
 type DetailCommandOptions struct {
 	Category    string
 	WorkHref    string
+	Source      string
 	Limit       int
 	Force       bool
 	DBPath      string
@@ -42,6 +45,7 @@ type DetailCommandOptions struct {
 
 type DetailCommandConfig struct {
 	Task        domain.DetailTask
+	Source      CrawlSource
 	DBPath      string
 	Debug       bool
 	MaxRetries  int

@@ -24,6 +24,7 @@ tasks:
   - name: game-task
     category: game
     metric: metascore
+    source: auto
     year: "2011:2014"
     platform: [pc, ps5]
     genre: [action, rpg]
@@ -72,8 +73,14 @@ tasks:
 	if configs[0].List == nil || configs[0].List.DBPath != filepath.Clean("output/default.db") {
 		t.Fatalf("unexpected inherited list db path: %+v", configs[0].List)
 	}
+	if configs[0].List.Source != CrawlSourceAuto {
+		t.Fatalf("expected list source auto, got %q", configs[0].List.Source)
+	}
 	if configs[1].Detail == nil || configs[1].Detail.DBPath != filepath.Clean("output/movie.db") {
 		t.Fatalf("unexpected detail db path: %+v", configs[1].Detail)
+	}
+	if configs[1].Detail.Source != CrawlSourceAPI {
+		t.Fatalf("expected default detail source api, got %q", configs[1].Detail.Source)
 	}
 	if configs[0].List.Task.MaxPages != 3 {
 		t.Fatalf("unexpected list page defaults: %+v", configs[0].List.Task)
@@ -83,6 +90,25 @@ tasks:
 	}
 	if configs[1].Detail.Task.WorkHref != "https://www.metacritic.com/movie/test-film" {
 		t.Fatalf("unexpected detail work href: %q", configs[1].Detail.Task.WorkHref)
+	}
+}
+
+func TestBuildBatchTaskConfigsRejectsSourceForReviews(t *testing.T) {
+	t.Parallel()
+
+	file := BatchFile{
+		Tasks: []BatchTaskSpec{
+			{
+				Kind:       "reviews",
+				Category:   "movie",
+				ReviewType: "critic",
+				Source:     "api",
+			},
+		},
+	}
+
+	if _, err := BuildBatchTaskConfigs(file); err == nil {
+		t.Fatal("expected reviews source validation error")
 	}
 }
 

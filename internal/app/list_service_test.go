@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoFurry/metacritic-harvester/internal/config"
 	"github.com/GoFurry/metacritic-harvester/internal/domain"
 	"github.com/GoFurry/metacritic-harvester/internal/storage"
 )
@@ -275,6 +276,110 @@ func TestListServiceRunTracksFailedPageStats(t *testing.T) {
 	}
 	if run.Status != "failed" {
 		t.Fatalf("expected crawl run status failed, got %q", run.Status)
+	}
+}
+
+func TestListServiceRunWithAPISource(t *testing.T) {
+	t.Parallel()
+
+	requests := make(chan string, 4)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.URL.String()
+		if r.URL.Path != "/finder/metacritic/web" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{
+			"data": {
+				"totalResults": 1,
+				"items": [
+					{
+						"title": "Alpha",
+						"slug": "alpha",
+						"releaseDate": "2026-04-23",
+						"criticScoreSummary": {"score": "91", "reviewCount": 12},
+						"userScore": {"score": "8.4", "reviewCount": 34},
+						"image": {"path": "/games/alpha.jpg"}
+					}
+				]
+			},
+			"links": {"last": {"meta": {"pageNum": 1}}}
+		}`))
+	}))
+	defer server.Close()
+
+	dbPath := filepath.Join(t.TempDir(), "list-api.db")
+	service := NewListService(ListServiceConfig{
+		BaseURL:        server.URL,
+		BackendBaseURL: server.URL,
+		Source:         config.CrawlSourceAPI,
+		DBPath:         dbPath,
+		MaxRetries:     0,
+	})
+
+	result, err := service.Run(context.Background(), domain.ListTask{
+		Category: "game",
+		Metric:   "metascore",
+		MaxPages: 1,
+		Filter: domain.Filter{
+			Platforms: []string{"pc"},
+			Genres:    []string{"action"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.PagesVisited != 1 || result.PagesWritten != 1 || result.WorksUpserted != 1 {
+		t.Fatalf("unexpected api result: %+v", result)
+	}
+
+	close(requests)
+	var visited []string
+	for req := range requests {
+		visited = append(visited, req)
+	}
+	if len(visited) != 1 {
+		t.Fatalf("expected exactly one api request, got %+v", visited)
+	}
+	if !strings.Contains(visited[0], "mcoTypeId=13") || !strings.Contains(visited[0], "sortBy=-metaScore") || !strings.Contains(visited[0], "gamePlatformIds=1500000019") {
+		t.Fatalf("expected finder api query in %q", visited[0])
+	}
+}
+
+func TestListServiceRunAutoFallsBackToHTML(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/finder/metacritic/web":
+			http.Error(w, "boom", http.StatusInternalServerError)
+		case "/browse/game/":
+			_, _ = w.Write([]byte(pageOneHTML))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	dbPath := filepath.Join(t.TempDir(), "list-auto.db")
+	service := NewListService(ListServiceConfig{
+		BaseURL:        server.URL,
+		BackendBaseURL: server.URL,
+		Source:         config.CrawlSourceAuto,
+		DBPath:         dbPath,
+		MaxRetries:     0,
+	})
+
+	result, err := service.Run(context.Background(), domain.ListTask{
+		Category: "game",
+		Metric:   "metascore",
+		MaxPages: 1,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.PagesVisited != 1 || result.WorksUpserted != 1 || result.Failures != 0 {
+		t.Fatalf("unexpected auto fallback result: %+v", result)
 	}
 }
 

@@ -1,0 +1,47 @@
+{
+  "components": [
+    {
+      "meta": {
+        "componentName": "product"
+      },
+      "data": {
+        "item": {
+          "title": "Baldur's Gate 3",
+          "description": "Gather your party and return to the Forgotten Realms.",
+          "releaseDate": "2023-08-03",
+          "criticScoreSummary": {
+            "score": "96",
+            "sentiment": "Universal Acclaim",
+            "reviewCount": 119
+          },
+          "userScore": {
+            "score": "8.9",
+            "sentiment": "Universal Acclaim",
+            "reviewCount": 1000
+          },
+          "rating": "M",
+          "platform": "PC",
+          "genres": [
+            {"name": "Western RPG"}
+          ],
+          "platforms": [
+            {
+              "name": "PC",
+              "criticScoreSummary": {
+                "url": "/game/baldurs-gate-3/critic-reviews?platform=pc",
+                "score": "96",
+                "reviewCount": 119
+              }
+            }
+          ],
+          "production": {
+            "companies": [
+              {"typeName": "developer", "name": "Larian Studios"},
+              {"typeName": "publisher", "name": "Larian Studios"}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

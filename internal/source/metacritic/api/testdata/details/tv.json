@@ -1,0 +1,37 @@
+{
+  "components": [
+    {
+      "meta": {
+        "componentName": "product"
+      },
+      "data": {
+        "item": {
+          "title": "BoJack Horseman",
+          "description": "A washed-up sitcom star tries to rebuild his life.",
+          "releaseDate": "2014-08-22",
+          "criticScoreSummary": {
+            "score": "82",
+            "sentiment": "Generally Favorable",
+            "reviewCount": 30
+          },
+          "userScore": {
+            "score": "8.8",
+            "sentiment": "Universal Acclaim",
+            "reviewCount": 900
+          },
+          "rating": "TV-MA",
+          "genres": [
+            {"name": "Comedy"},
+            {"name": "Drama"}
+          ],
+          "numberOfSeasons": 6,
+          "production": {
+            "companies": [
+              {"typeName": "production", "name": "The Tornante Company"}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

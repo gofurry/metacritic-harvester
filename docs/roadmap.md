@@ -178,57 +178,32 @@
 
 ## Phase 5-1：列表与详情切换到后端 API 优先
 
-状态：未开始
+状态：已完成
 
-目标：
+已完成内容：
 
-- 为已经完成的 `list` 与 `detail` 增加后端接口抓取实现
-- 在不移除现有 HTML / Nuxt 解析器的前提下，将默认抓取策略切换为“后端接口优先”
+- `crawl list` 新增 finder API adapter，并接入 `game / movie / tv`、`metascore / userscore / newest`、分页与主要过滤参数映射
+- `crawl detail` 新增 composer API adapter，并覆盖 `game / movie / tv` 的核心详情字段
+- `crawl list` / `crawl detail` 新增统一 `--source=api|html|auto`，CLI 与 batch 默认值均为 `api`
+- `auto` 语义已落地为“先 API，失败后回退 HTML”
+- `detail` 在 `api` 路径下已实现 `API + enrich`：API 提供主详情，HTML / Nuxt 仅补 `where_to_buy`、`where_to_watch` 等当前仍需要的补充字段
 
-默认策略决策：
+测试与验证：
 
-- 默认应改为 `API-first`
-- 保留 `HTML/Nuxt` 解析作为：
-  - fallback
-  - 字段补齐
-  - 回归校验手段
-
-为什么默认改为后端接口：
-
-- 返回结果更结构化，更适合榜单、过滤条件、分页和详情字段抽取
-- 对 DOM、CSS、Nuxt 结构变更更不敏感
-- 响应体通常更轻，抓取与解析成本更低
-- 与 Phase 4 的评论抓取技术路线一致，后续维护成本更低
-
-为什么仍保留前端解析：
-
-- 某些字段可能只在页面或 Nuxt 状态里出现
-- 后端接口可能存在缺字段、限流、临时下线或反爬策略变化
-- 现有 HTML / Nuxt 解析链路已经可作为兜底与对照
-
-建议交付形态：
-
-- 新增统一 source 选择策略，例如：
-  - `--source=api`
-  - `--source=html`
-  - `--source=auto`
-- 默认值改为 `api`
-- `auto` 可在 API 失败时自动回退到 HTML
-- `detail` 在 `api` 模式下允许追加 HTML / Nuxt enrich，以继续覆盖：
-  - `where_to_buy`
-  - `where_to_watch`
-  - 其他 API 未覆盖字段
-
-实施范围：
-
-- `crawl list`：新增 API adapter，并将默认实现切到 API
-- `crawl detail`：新增 API adapter，默认先抓 API，再按需要补充 HTML / Nuxt
-- 统一 `internal/source/metacritic/api` 与现有 `internal/source/metacritic` HTML parser 的接口层
-- 为 list/detail 增加 API fixture、回归测试与 source 级 benchmark
+- 已将 list/detail 样本转为 `internal/source/metacritic/api/testdata` 下的 fixture
+- 已补 finder / composer 的 API 解析测试，覆盖 `game / movie / tv`
+- 已补 list/detail 的 source 路径测试，覆盖：
+  - `source=api`
+  - `source=auto` 下 API 失败回退 HTML
+  - detail API 成功但 enrich 失败时仍视为成功
+- 已补 source 参数的 CLI / config / batch 测试
+- 已增加轻量 benchmark，作为 API 与 HTML 路径的趋势基线
 
 说明：
 
-- Phase 5-1 的核心不是删除前端解析，而是把系统默认抓取主链路切换成更适合长期维护的 `API-first`
+- 当前 `docs/sample/list-sample.txt` 与 `docs/sample/details-sample.txt` 已足够支撑本阶段实现；额外样本转为后续补边界使用
+- Phase 5-1 的目标不是移除 HTML / Nuxt，而是把默认抓取主链路切换为更稳定的 `API-first`
+- 本阶段未改数据库 schema，也未改 current/latest/snapshot 写入语义
 
 ## Phase 6：服务化
 

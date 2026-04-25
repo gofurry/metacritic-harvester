@@ -34,6 +34,7 @@ const (
 type BatchTaskSpec struct {
 	Name              string   `yaml:"name"`
 	Kind              string   `yaml:"kind"`
+	Source            string   `yaml:"source"`
 	Category          string   `yaml:"category"`
 	Metric            string   `yaml:"metric"`
 	Year              string   `yaml:"year"`
@@ -102,6 +103,7 @@ func BuildBatchTaskConfigs(file BatchFile) ([]BatchTaskConfig, error) {
 			options := ListCommandOptions{
 				Category:    strings.TrimSpace(task.Category),
 				Metric:      strings.TrimSpace(task.Metric),
+				Source:      firstNonEmpty(task.Source, string(CrawlSourceAPI)),
 				Year:        strings.TrimSpace(task.Year),
 				Platform:    strings.Join(task.Platform, ","),
 				Network:     strings.Join(task.Network, ","),
@@ -138,6 +140,7 @@ func BuildBatchTaskConfigs(file BatchFile) ([]BatchTaskConfig, error) {
 			options := DetailCommandOptions{
 				Category:    strings.TrimSpace(task.Category),
 				WorkHref:    strings.TrimSpace(task.WorkHref),
+				Source:      firstNonEmpty(task.Source, string(CrawlSourceAPI)),
 				Limit:       firstNonNegativePointer(0, task.Limit),
 				Force:       mergeBool(false, task.Force),
 				DBPath:      firstNonEmpty(task.DBPath, file.Defaults.DBPath, "output/metacritic.db"),
@@ -346,6 +349,9 @@ func validateReviewBatchTask(task BatchTaskSpec) error {
 	}
 	if task.DetailConcurrency != nil {
 		return fmt.Errorf("reviews task does not support detail-concurrency")
+	}
+	if strings.TrimSpace(task.Source) != "" {
+		return fmt.Errorf("reviews task does not support source")
 	}
 	return nil
 }

@@ -1,0 +1,27 @@
+{
+  "data": {
+    "totalResults": 1,
+    "items": [
+      {
+        "title": "PK",
+        "slug": "pk",
+        "releaseDate": "2014-12-19",
+        "criticScoreSummary": {
+          "score": "77",
+          "reviewCount": 12
+        },
+        "userScore": {
+          "score": "8.3",
+          "reviewCount": 210
+        }
+      }
+    ]
+  },
+  "links": {
+    "last": {
+      "meta": {
+        "pageNum": 1
+      }
+    }
+  }
+}

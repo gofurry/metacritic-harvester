@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoFurry/metacritic-harvester/internal/config"
 	"github.com/GoFurry/metacritic-harvester/internal/domain"
 	"github.com/GoFurry/metacritic-harvester/internal/storage"
 )
@@ -491,6 +492,170 @@ func TestDetailServiceRunWithConcurrency(t *testing.T) {
 	}
 	if snapshotCount != 4 {
 		t.Fatalf("expected 4 snapshots, got %d", snapshotCount)
+	}
+}
+
+func TestDetailServiceRunWithAPISourceAndEnrich(t *testing.T) {
+	t.Parallel()
+
+	nuxtRaw := readRootNuxtSample(t, "metacritic-nuxt-data-game-sample.txt")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/composer/metacritic/pages/games/alpha/web":
+			_, _ = w.Write([]byte(`{
+				"components": [
+					{
+						"meta": {"componentName": "product"},
+						"data": {
+							"item": {
+								"title": "Alpha",
+								"description": "Summary text.",
+								"releaseDate": "2026-04-23",
+								"criticScoreSummary": {"score": "91", "sentiment": "Universal Acclaim", "reviewCount": 12},
+								"userScore": {"score": "8.4", "sentiment": "Generally Favorable", "reviewCount": 34},
+								"rating": "M",
+								"genres": [{"name": "Action RPG"}],
+								"platform": "PC",
+								"platforms": [{"name": "PC", "criticScoreSummary": {"url": "/game/alpha/critic-reviews?platform=pc", "score": "91", "reviewCount": 12}}],
+								"production": {
+									"companies": [
+										{"typeName": "developer", "name": "Studio A"},
+										{"typeName": "publisher", "name": "Publisher A"}
+									]
+								}
+							}
+						}
+					}
+				]
+			}`))
+		case "/game/alpha":
+			_, _ = w.Write([]byte(detailServiceGameHTMLWithNuxt("Alpha", nuxtRaw)))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "detail-api.db")
+	seedDetailServiceDB(t, ctx, dbPath, []domain.Work{
+		{Name: "Alpha", Href: server.URL + "/game/alpha", Category: domain.CategoryGame},
+	})
+
+	service := NewDetailService(DetailServiceConfig{
+		BaseURL:        server.URL,
+		BackendBaseURL: server.URL,
+		Source:         config.CrawlSourceAPI,
+		DBPath:         dbPath,
+		MaxRetries:     0,
+	})
+	service.sleep = func(time.Duration) {}
+
+	result, err := service.Run(ctx, domain.DetailTask{Category: domain.CategoryGame})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Fetched != 1 || result.Failures != 0 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+
+	db, openErr := storage.Open(ctx, dbPath)
+	if openErr != nil {
+		t.Fatalf("Open() error = %v", openErr)
+	}
+	defer db.Close()
+	repo := storage.NewRepository(db)
+	row, rowErr := repo.GetWorkDetail(ctx, server.URL+"/game/alpha")
+	if rowErr != nil {
+		t.Fatalf("GetWorkDetail() error = %v", rowErr)
+	}
+	if !row.Metascore.Valid || row.Metascore.String != "91" || !strings.Contains(row.DetailsJson, "\"where_to_buy\"") {
+		t.Fatalf("expected api detail + enrich payload, got %+v", row)
+	}
+}
+
+func TestDetailServiceRunAutoFallsBackToHTML(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/composer/metacritic/pages/games/fallback/web":
+			http.Error(w, "boom", http.StatusInternalServerError)
+		case "/game/fallback":
+			_, _ = w.Write([]byte(detailServiceGameHTML("Fallback Game")))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "detail-auto.db")
+	seedDetailServiceDB(t, ctx, dbPath, []domain.Work{
+		{Name: "Fallback", Href: server.URL + "/game/fallback", Category: domain.CategoryGame},
+	})
+
+	service := NewDetailService(DetailServiceConfig{
+		BaseURL:        server.URL,
+		BackendBaseURL: server.URL,
+		Source:         config.CrawlSourceAuto,
+		DBPath:         dbPath,
+		MaxRetries:     0,
+	})
+	service.sleep = func(time.Duration) {}
+
+	result, err := service.Run(ctx, domain.DetailTask{Category: domain.CategoryGame})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Fetched != 1 || result.Failures != 0 {
+		t.Fatalf("unexpected auto fallback result: %+v", result)
+	}
+}
+
+func TestDetailServiceAPISourceIgnoresEnrichFailure(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/composer/metacritic/pages/games/no-enrich/web":
+			_, _ = w.Write([]byte(`{
+				"components": [
+					{
+						"meta": {"componentName": "product"},
+						"data": {"item": {"title": "No Enrich", "description": "Summary", "releaseDate": "2026-04-23"}}
+					}
+				]
+			}`))
+		case "/game/no-enrich":
+			http.Error(w, "no html", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "detail-api-enrich-failure.db")
+	seedDetailServiceDB(t, ctx, dbPath, []domain.Work{
+		{Name: "No Enrich", Href: server.URL + "/game/no-enrich", Category: domain.CategoryGame},
+	})
+
+	service := NewDetailService(DetailServiceConfig{
+		BaseURL:        server.URL,
+		BackendBaseURL: server.URL,
+		Source:         config.CrawlSourceAPI,
+		DBPath:         dbPath,
+		MaxRetries:     0,
+	})
+	service.sleep = func(time.Duration) {}
+
+	result, err := service.Run(ctx, domain.DetailTask{Category: domain.CategoryGame})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Fetched != 1 || result.Failures != 0 {
+		t.Fatalf("unexpected result: %+v", result)
 	}
 }
 

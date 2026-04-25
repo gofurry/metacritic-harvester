@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -15,9 +16,11 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/google/uuid"
 
+	"github.com/GoFurry/metacritic-harvester/internal/config"
 	"github.com/GoFurry/metacritic-harvester/internal/crawler"
 	"github.com/GoFurry/metacritic-harvester/internal/domain"
 	"github.com/GoFurry/metacritic-harvester/internal/source/metacritic"
+	detailapi "github.com/GoFurry/metacritic-harvester/internal/source/metacritic/api"
 	"github.com/GoFurry/metacritic-harvester/internal/storage"
 )
 
@@ -46,11 +49,13 @@ const (
 )
 
 type DetailServiceConfig struct {
-	BaseURL    string
-	DBPath     string
-	Debug      bool
-	MaxRetries int
-	ProxyURLs  []string
+	BaseURL        string
+	BackendBaseURL string
+	Source         config.CrawlSource
+	DBPath         string
+	Debug          bool
+	MaxRetries     int
+	ProxyURLs      []string
 }
 
 type DetailRunResult struct {
@@ -77,6 +82,23 @@ func NewDetailService(cfg DetailServiceConfig) *DetailService {
 		now:   time.Now,
 		sleep: time.Sleep,
 	}
+}
+
+func (s *DetailService) normalizedSource() config.CrawlSource {
+	switch s.cfg.Source {
+	case config.CrawlSourceAPI, config.CrawlSourceHTML, config.CrawlSourceAuto:
+		return s.cfg.Source
+	default:
+		return config.CrawlSourceHTML
+	}
+}
+
+func (s *DetailService) backendBaseURL() string {
+	baseURL := strings.TrimSpace(s.cfg.BackendBaseURL)
+	if baseURL == "" {
+		return config.DefaultBackendBaseURL
+	}
+	return baseURL
 }
 
 func (s *DetailService) Run(ctx context.Context, task domain.DetailTask) (DetailRunResult, error) {
@@ -163,7 +185,7 @@ func (s *DetailService) Run(ctx context.Context, task domain.DetailTask) (Detail
 
 	for _, fetcher := range fetchers {
 		wg.Add(1)
-		go func(fetcher *detailWorkerFetcher) {
+		go func(fetcher detailFetcher) {
 			defer wg.Done()
 			for candidate := range jobs {
 				s.processDetailCandidate(ctx, repo, fetcher, candidate, staleBefore, runID, state, &dbWriteMu)
@@ -211,7 +233,7 @@ sendJobs:
 func (s *DetailService) processDetailCandidate(
 	ctx context.Context,
 	repo *storage.Repository,
-	fetcher *detailWorkerFetcher,
+	fetcher detailFetcher,
 	candidate storage.DetailCandidate,
 	staleBefore time.Time,
 	runID string,
@@ -299,32 +321,153 @@ func (s *DetailService) processDetailCandidate(
 	logDetailProgress(runID, snapshot)
 }
 
-func (s *DetailService) buildDetailFetchers(workerCount int) ([]*detailWorkerFetcher, error) {
-	allowedDomains, err := allowedDomainsForBaseURL(s.cfg.BaseURL)
-	if err != nil {
-		return nil, detailFailuref(detailErrorTypeState, detailErrorStageRequest, err, "parse base url failed")
-	}
-
+func (s *DetailService) buildDetailFetchers(workerCount int) ([]detailFetcher, error) {
 	proxyRotator, err := crawler.NewProxyRotator(s.cfg.ProxyURLs)
 	if err != nil {
 		return nil, detailFailuref(detailErrorTypeState, detailErrorStageRequest, err, "create detail proxy rotator failed")
 	}
 
 	transport := crawler.NewHTTPTransport(s.cfg.Debug, proxyRotator)
-	fetchers := make([]*detailWorkerFetcher, 0, workerCount)
-	for i := 0; i < workerCount; i++ {
-		fetcher, err := newDetailWorkerFetcher(detailWorkerFetcherConfig{
-			serviceConfig:   s.cfg,
-			allowedDomains:  allowedDomains,
-			sharedTransport: transport,
-			sleep:           s.sleep,
-		})
+	source := s.normalizedSource()
+	var allowedDomains []string
+	if source == config.CrawlSourceHTML || source == config.CrawlSourceAuto {
+		allowedDomains, err = allowedDomainsForBaseURL(s.cfg.BaseURL)
 		if err != nil {
-			return nil, err
+			return nil, detailFailuref(detailErrorTypeState, detailErrorStageRequest, err, "parse base url failed")
 		}
-		fetchers = append(fetchers, fetcher)
+	}
+
+	fetchers := make([]detailFetcher, 0, workerCount)
+	for i := 0; i < workerCount; i++ {
+		switch source {
+		case config.CrawlSourceHTML:
+			fetcher, err := newDetailWorkerFetcher(detailWorkerFetcherConfig{
+				serviceConfig:   s.cfg,
+				allowedDomains:  allowedDomains,
+				sharedTransport: transport,
+				sleep:           s.sleep,
+			})
+			if err != nil {
+				return nil, err
+			}
+			fetchers = append(fetchers, fetcher)
+		case config.CrawlSourceAPI, config.CrawlSourceAuto:
+			var fallback detailFetcher
+			if source == config.CrawlSourceAuto {
+				htmlFetcher, err := newDetailWorkerFetcher(detailWorkerFetcherConfig{
+					serviceConfig:   s.cfg,
+					allowedDomains:  allowedDomains,
+					sharedTransport: transport,
+					sleep:           s.sleep,
+				})
+				if err != nil {
+					return nil, err
+				}
+				fallback = htmlFetcher
+			}
+
+			fetchers = append(fetchers, &detailAPIFetcher{
+				debug: s.cfg.Debug,
+				api: detailapi.NewComposerAPI(
+					s.backendBaseURL(),
+					transport,
+					30*time.Second,
+					s.cfg.MaxRetries,
+				),
+				enricher: newDetailHTMLEnricher(s.cfg.Debug, transport),
+				fallback: fallback,
+			})
+		default:
+			return nil, detailFailuref(detailErrorTypeState, detailErrorStageRequest, nil, "unsupported detail source %q", source)
+		}
 	}
 	return fetchers, nil
+}
+
+type detailFetcher interface {
+	Fetch(context.Context, domain.Work) (domain.WorkDetail, error)
+}
+
+type detailAPIFetcher struct {
+	debug    bool
+	api      *detailapi.ComposerAPI
+	enricher *detailHTMLEnricher
+	fallback detailFetcher
+}
+
+func (f *detailAPIFetcher) Fetch(ctx context.Context, work domain.Work) (domain.WorkDetail, error) {
+	detail, err := f.api.Fetch(ctx, work)
+	if err != nil {
+		if f.fallback != nil {
+			return f.fallback.Fetch(ctx, work)
+		}
+		return domain.WorkDetail{}, detailFailuref(detailErrorTypeParse, detailErrorStageParse, err, "detail composer api fetch failed: href=%s", work.Href)
+	}
+
+	if f.enricher != nil {
+		if enrichErr := f.enricher.Enrich(ctx, work, &detail); enrichErr != nil {
+			log.Printf(
+				"detail enrich warning: category=%s href=%s error=%v",
+				work.Category,
+				work.Href,
+				enrichErr,
+			)
+		}
+	}
+
+	return detail, nil
+}
+
+type detailHTMLEnricher struct {
+	debug  bool
+	client *http.Client
+}
+
+func newDetailHTMLEnricher(debug bool, transport *http.Transport) *detailHTMLEnricher {
+	var roundTripper http.RoundTripper
+	if transport != nil {
+		roundTripper = transport
+	}
+	return &detailHTMLEnricher{
+		debug: debug,
+		client: &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: roundTripper,
+		},
+	}
+}
+
+func (e *detailHTMLEnricher) Enrich(ctx context.Context, work domain.Work, detail *domain.WorkDetail) error {
+	if strings.TrimSpace(work.Href) == "" || detail == nil {
+		return nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, work.Href, nil)
+	if err != nil {
+		return err
+	}
+	setDetailHTTPHeaders(req)
+	resp, err := e.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("detail enrich request failed: status=%d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return metacritic.EnrichDetail(work.Category, work.Href, bytes.NewReader(body), detail)
+}
+
+func setDetailHTTPHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Referer", "https://www.metacritic.com/")
 }
 
 type detailRunScope struct {

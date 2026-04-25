@@ -6,6 +6,7 @@
 
 ```bash
 go run ./cmd/metacritic-harvester crawl list --category=game --metric=metascore --pages=1 --db=output/metacritic.db
+go run ./cmd/metacritic-harvester crawl list --category=game --metric=metascore --source=auto --pages=1 --db=output/metacritic.db
 ```
 
 ### Game with filters
@@ -58,6 +59,7 @@ go run ./cmd/metacritic-harvester crawl schedule --file=examples/schedule-jobs.y
 
 ```bash
 go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db
+go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --source=auto
 ```
 
 ### Crawl only game details

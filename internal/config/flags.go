@@ -22,6 +22,11 @@ func BuildListCommandConfig(opts ListCommandOptions) (ListCommandConfig, error) 
 		return ListCommandConfig{}, err
 	}
 
+	source, err := ParseCrawlSource(opts.Source)
+	if err != nil {
+		return ListCommandConfig{}, err
+	}
+
 	if opts.Pages <= 0 {
 		return ListCommandConfig{}, fmt.Errorf("pages must be greater than 0")
 	}
@@ -52,6 +57,7 @@ func BuildListCommandConfig(opts ListCommandOptions) (ListCommandConfig, error) 
 			MaxPages: opts.Pages,
 			Debug:    opts.Debug,
 		},
+		Source:     source,
 		DBPath:     filepath.Clean(dbPath),
 		Debug:      opts.Debug,
 		MaxRetries: opts.MaxRetries,
@@ -79,6 +85,11 @@ func BuildDetailCommandConfig(opts DetailCommandOptions) (DetailCommandConfig, e
 		return DetailCommandConfig{}, fmt.Errorf("retries must be greater than or equal to 0")
 	}
 
+	source, err := ParseCrawlSource(opts.Source)
+	if err != nil {
+		return DetailCommandConfig{}, err
+	}
+
 	proxies, err := SplitAndValidateProxyList(opts.Proxies)
 	if err != nil {
 		return DetailCommandConfig{}, err
@@ -100,6 +111,7 @@ func BuildDetailCommandConfig(opts DetailCommandOptions) (DetailCommandConfig, e
 			Debug:       opts.Debug,
 			Concurrency: opts.Concurrency,
 		},
+		Source:      source,
 		DBPath:      filepath.Clean(dbPath),
 		Debug:       opts.Debug,
 		MaxRetries:  opts.MaxRetries,

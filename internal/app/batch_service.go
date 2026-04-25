@@ -190,13 +190,15 @@ func (s *BatchService) runTask(ctx context.Context, task config.BatchTaskConfig)
 func (s *BatchService) runListTask(ctx context.Context, task config.BatchTaskConfig) BatchTaskResult {
 	listCfg := task.List
 	listService := s.newListService(ListServiceConfig{
-		BaseURL:    s.baseURL,
-		DBPath:     listCfg.DBPath,
-		Debug:      listCfg.Debug,
-		MaxRetries: listCfg.MaxRetries,
-		ProxyURLs:  listCfg.ProxyURLs,
-		RunSource:  "crawl batch",
-		TaskName:   task.Name,
+		BaseURL:        s.baseURL,
+		BackendBaseURL: s.reviewBaseURL,
+		Source:         listCfg.Source,
+		DBPath:         listCfg.DBPath,
+		Debug:          listCfg.Debug,
+		MaxRetries:     listCfg.MaxRetries,
+		ProxyURLs:      listCfg.ProxyURLs,
+		RunSource:      "crawl batch",
+		TaskName:       task.Name,
 	})
 
 	taskResult := BatchTaskResult{
@@ -227,11 +229,13 @@ func (s *BatchService) runListTask(ctx context.Context, task config.BatchTaskCon
 func (s *BatchService) runDetailTask(ctx context.Context, task config.BatchTaskConfig) BatchTaskResult {
 	detailCfg := task.Detail
 	detailService := s.newDetailService(DetailServiceConfig{
-		BaseURL:    s.baseURL,
-		DBPath:     detailCfg.DBPath,
-		Debug:      detailCfg.Debug,
-		MaxRetries: detailCfg.MaxRetries,
-		ProxyURLs:  detailCfg.ProxyURLs,
+		BaseURL:        s.baseURL,
+		BackendBaseURL: s.reviewBaseURL,
+		Source:         detailCfg.Source,
+		DBPath:         detailCfg.DBPath,
+		Debug:          detailCfg.Debug,
+		MaxRetries:     detailCfg.MaxRetries,
+		ProxyURLs:      detailCfg.ProxyURLs,
 	})
 
 	taskResult := BatchTaskResult{

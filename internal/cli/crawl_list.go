@@ -14,13 +14,15 @@ import (
 func newCrawlListCommand() *cobra.Command {
 	return newCrawlListCommandWithRunner(func(ctx context.Context, cfg config.ListCommandConfig) (app.ListRunResult, error) {
 		service := app.NewListService(app.ListServiceConfig{
-			BaseURL:    config.DefaultBaseURL,
-			DBPath:     cfg.DBPath,
-			Debug:      cfg.Debug,
-			MaxRetries: cfg.MaxRetries,
-			ProxyURLs:  cfg.ProxyURLs,
-			RunSource:  "crawl list",
-			TaskName:   fmt.Sprintf("%s-%s", cfg.Task.Category, cfg.Task.Metric),
+			BaseURL:        config.DefaultBaseURL,
+			BackendBaseURL: config.DefaultBackendBaseURL,
+			Source:         cfg.Source,
+			DBPath:         cfg.DBPath,
+			Debug:          cfg.Debug,
+			MaxRetries:     cfg.MaxRetries,
+			ProxyURLs:      cfg.ProxyURLs,
+			RunSource:      "crawl list",
+			TaskName:       fmt.Sprintf("%s-%s", cfg.Task.Category, cfg.Task.Metric),
 		})
 		return service.Run(ctx, cfg.Task)
 	})
@@ -39,9 +41,10 @@ func newCrawlListCommandWithRunner(runner func(context.Context, config.ListComma
 			}
 			fmt.Fprintf(
 				cmd.ErrOrStderr(),
-				"crawl list starting: category=%s metric=%s pages=%d db=%s\n",
+				"crawl list starting: category=%s metric=%s source=%s pages=%d db=%s\n",
 				cfg.Task.Category,
 				cfg.Task.Metric,
+				cfg.Source,
 				cfg.Task.MaxPages,
 				cfg.DBPath,
 			)
@@ -92,6 +95,7 @@ func newCrawlListCommandWithRunner(runner func(context.Context, config.ListComma
 
 	cmd.Flags().StringVar(&opts.Category, "category", "", "Category to crawl: game|movie|tv")
 	cmd.Flags().StringVar(&opts.Metric, "metric", "", "Metric to crawl: metascore|userscore|newest")
+	cmd.Flags().StringVar(&opts.Source, "source", string(config.CrawlSourceAPI), "List source: api|html|auto")
 	cmd.Flags().StringVar(&opts.Year, "year", "", "Release year range in YYYY:YYYY format")
 	cmd.Flags().StringVar(&opts.Platform, "platform", "", "Comma-separated game platforms; game only")
 	cmd.Flags().StringVar(&opts.Network, "network", "", "Comma-separated movie/tv networks; movie|tv only")

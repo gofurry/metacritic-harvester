@@ -33,6 +33,7 @@ func TestCrawlListCommandParsesFlags(t *testing.T) {
 	cmd.SetArgs([]string{
 		"--category=game",
 		"--metric=metascore",
+		"--source=auto",
 		"--year=2011:2014",
 		"--platform=pc,ps5",
 		"--genre=action,rpg",
@@ -56,6 +57,9 @@ func TestCrawlListCommandParsesFlags(t *testing.T) {
 	if captured.Task.MaxPages != 2 {
 		t.Fatalf("expected pages 2, got %d", captured.Task.MaxPages)
 	}
+	if captured.Source != "auto" {
+		t.Fatalf("expected source auto, got %q", captured.Source)
+	}
 	if captured.Task.Filter.ReleaseYearMin == nil || *captured.Task.Filter.ReleaseYearMin != 2011 {
 		t.Fatalf("expected year min 2011, got %+v", captured.Task.Filter.ReleaseYearMin)
 	}
@@ -70,6 +74,9 @@ func TestCrawlListCommandParsesFlags(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "crawl list completed") {
 		t.Fatalf("expected summary output, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "source=auto") {
+		t.Fatalf("expected source in start output, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "pages=1 pages_scheduled=2 pages_succeeded=1 pages_written=1") {
 		t.Fatalf("expected page stats in output, got %q", out.String())

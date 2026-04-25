@@ -37,8 +37,8 @@ Current features:
 ## Quick start
 
 ```bash
-go run ./cmd/metacritic-harvester crawl list --category=game --metric=metascore --pages=1 --db=output/metacritic.db
-go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --category=game
+go run ./cmd/metacritic-harvester crawl list --category=game --metric=metascore --source=api --pages=1 --db=output/metacritic.db
+go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --category=game --source=api
 go run ./cmd/metacritic-harvester crawl reviews --db=output/metacritic.db --category=game --review-type=critic --limit=10
 go run ./cmd/metacritic-harvester detail query --db=output/metacritic.db --category=game
 ```

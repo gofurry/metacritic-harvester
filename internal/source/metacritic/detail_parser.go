@@ -51,6 +51,21 @@ func ParseDetailDocument(category domain.Category, workHref string, doc *goquery
 	return detail, nil
 }
 
+func EnrichDetail(category domain.Category, workHref string, body io.Reader, detail *domain.WorkDetail) error {
+	doc, err := goquery.NewDocumentFromReader(body)
+	if err != nil {
+		return fmt.Errorf("parse detail enrich html: %w", err)
+	}
+	return EnrichDetailDocument(category, workHref, doc, detail)
+}
+
+func EnrichDetailDocument(category domain.Category, workHref string, doc *goquery.Document, detail *domain.WorkDetail) error {
+	if detail == nil {
+		return fmt.Errorf("detail enrich target is nil")
+	}
+	return parseNuxtDetail(category, workHref, doc, detail)
+}
+
 func parseGameDetail(doc *goquery.Document, detail *domain.WorkDetail) {
 	detail.Title = firstText(doc.Selection, "h1.hero-title__text, h1")
 	detail.Summary = cleanTextWithout(doc.Find(".c-game-details__summary-description").First(), ".c-game-details__read-more")

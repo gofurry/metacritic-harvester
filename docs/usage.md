@@ -67,6 +67,7 @@ go run ./cmd/metacritic-harvester crawl list --category=tv --metric=newest --yea
 
 - `--category=game|movie|tv`
 - `--metric=metascore|userscore|newest`
+- `--source=api|html|auto`，默认 `api`
 - `--year=YYYY:YYYY`
 - `--platform=...` 仅 `game`
 - `--network=...` 仅 `movie|tv`
@@ -79,6 +80,12 @@ go run ./cmd/metacritic-harvester crawl list --category=tv --metric=newest --yea
 - `--proxies`
 
 命令完成后会输出当前 `run_id`，可以直接用于 `latest compare`。
+
+说明：
+
+- `crawl list` 默认走后端 finder API
+- `--source=html` 会强制使用现有 HTML 抓取路径
+- `--source=auto` 会先尝试 API，失败后整次任务回退到 HTML
 
 ## crawl detail
 
@@ -95,16 +102,19 @@ go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --categ
 go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --category=movie --limit=20
 go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --work-href=https://www.metacritic.com/game/baldurs-gate-3
 go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --category=tv --force
+go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --source=auto --category=movie
 ```
 
 说明：
 
 - 详情页来源于 `crawl list` 已写入的 `works.href`
+- `crawl detail` 默认走 composer API 作为主数据源
 - 默认跳过已经成功抓取过的作品
 - `--force` 会重新抓取已成功详情
 - `--work-href` 支持传完整 URL，也支持以 `/game/...`、`/movie/...`、`/tv/...` 开头的相对路径
-- 当前会抓取公开 HTML 中可直接获得的轻量详情字段
-- 当前也会从 Nuxt `#__NUXT_DATA__` 中补充：
+- `--source=html` 会强制使用现有 HTML 详情路径
+- `--source=auto` 会先尝试 API，单个作品 API 主抓失败时回退到 HTML
+- 当前在 `source=api` 下会用 HTML / Nuxt 做 enrich，补充：
   - `game` 的 `where_to_buy`
   - `movie / tv` 的 `where_to_watch`
 
