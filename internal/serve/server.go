@@ -28,16 +28,17 @@ type Config struct {
 }
 
 type Server struct {
-	cfg        Config
-	logs       *LogBroker
-	tasks      taskDispatcher
-	ui         http.Handler
-	httpServer *http.Server
+	cfg         Config
+	logs        *LogBroker
+	tasks       taskDispatcher
+	taskManager *TaskManager
+	ui          http.Handler
+	httpServer  *http.Server
 }
 
 func NewServer(cfg Config) *Server {
 	if strings.TrimSpace(cfg.Addr) == "" {
-		cfg.Addr = "127.0.0.1:8080"
+		cfg.Addr = "127.0.0.1:36666"
 	}
 	if strings.TrimSpace(cfg.DBPath) == "" {
 		cfg.DBPath = "output/metacritic.db"
@@ -48,7 +49,6 @@ func NewServer(cfg Config) *Server {
 	if strings.TrimSpace(cfg.BackendBaseURL) == "" {
 		cfg.BackendBaseURL = config.DefaultBackendBaseURL
 	}
-
 	return &Server{
 		cfg:  cfg,
 		logs: NewLogBroker(defaultLogBufferSize),
@@ -99,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/runs", s.handleRuns)
+	mux.HandleFunc("/api/overview", s.handleOverview)
 	mux.HandleFunc("/api/tasks", s.handleTasks)
 	mux.HandleFunc("/api/tasks/", s.handleTaskByID)
 	mux.HandleFunc("/api/logs", s.handleRecentLogs)
@@ -106,6 +107,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/latest", s.handleLatest)
 	mux.HandleFunc("/api/detail", s.handleDetail)
 	mux.HandleFunc("/api/review", s.handleReview)
+	mux.HandleFunc("/api/export/latest", s.handleLatestExport)
+	mux.HandleFunc("/api/export/detail", s.handleDetailExport)
+	mux.HandleFunc("/api/export/review", s.handleReviewExport)
 	mux.HandleFunc("/api/detail/state", s.handleDetailFetchState)
 	mux.HandleFunc("/api/review/state", s.handleReviewFetchState)
 	mux.HandleFunc("/api/tasks/list", s.handleSubmitList)
@@ -124,7 +128,8 @@ func (s *Server) ensureTasks(ctx context.Context) {
 	if s.tasks != nil {
 		return
 	}
-	s.tasks = NewTaskManager(ctx, s.cfg)
+	s.taskManager = NewTaskManager(ctx, s.cfg)
+	s.tasks = s.taskManager
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, _ *http.Request) {
@@ -166,6 +171,15 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, mapCrawlRuns(rows))
+}
+
+func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
+	view, err := buildOverview(r.Context(), s.cfg.DBPath, s.tasks.List())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "overview", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
@@ -315,6 +329,115 @@ func (s *Server) handleReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, mapLatestReviews(rows))
+}
+
+func (s *Server) handleLatestExport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+	format := strings.TrimSpace(r.URL.Query().Get("format"))
+	if format == "" {
+		format = exportFormatCSV
+	}
+	profile := strings.TrimSpace(r.URL.Query().Get("profile"))
+	if profile == "" {
+		profile = exportProfileRaw
+	}
+	if !isValidExportFormat(format) || !isValidExportProfile(profile) {
+		writeErrorMessage(w, http.StatusBadRequest, "export latest", "format must be csv|json and profile must be raw|flat|summary")
+		return
+	}
+	repo, closeFn, err := openReadRepository(r.Context(), s.cfg.DBPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export latest", err)
+		return
+	}
+	defer closeFn()
+	download, err := buildLatestExport(r.Context(), repo, storage.ListLatestEntriesFilter{
+		Category:  strings.TrimSpace(r.URL.Query().Get("category")),
+		Metric:    strings.TrimSpace(r.URL.Query().Get("metric")),
+		WorkHref:  domain.NormalizeWorkHref(r.URL.Query().Get("work_href"), config.DefaultBaseURL),
+		FilterKey: strings.TrimSpace(r.URL.Query().Get("filter_key")),
+		Limit:     -1,
+	}, strings.TrimSpace(r.URL.Query().Get("run_id")), format, profile)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export latest", err)
+		return
+	}
+	writeDownload(w, download)
+}
+
+func (s *Server) handleDetailExport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+	format := strings.TrimSpace(r.URL.Query().Get("format"))
+	if format == "" {
+		format = exportFormatCSV
+	}
+	profile := strings.TrimSpace(r.URL.Query().Get("profile"))
+	if profile == "" {
+		profile = exportProfileRaw
+	}
+	if !isValidExportFormat(format) || !isValidExportProfile(profile) {
+		writeErrorMessage(w, http.StatusBadRequest, "export detail", "format must be csv|json and profile must be raw|flat|summary")
+		return
+	}
+	repo, closeFn, err := openReadRepository(r.Context(), s.cfg.DBPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export detail", err)
+		return
+	}
+	defer closeFn()
+	download, err := buildDetailExport(r.Context(), repo, storage.ListWorkDetailsFilter{
+		Category: strings.TrimSpace(r.URL.Query().Get("category")),
+		WorkHref: domain.NormalizeWorkHref(r.URL.Query().Get("work_href"), config.DefaultBaseURL),
+		Limit:    -1,
+	}, strings.TrimSpace(r.URL.Query().Get("run_id")), format, profile)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export detail", err)
+		return
+	}
+	writeDownload(w, download)
+}
+
+func (s *Server) handleReviewExport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+	format := strings.TrimSpace(r.URL.Query().Get("format"))
+	if format == "" {
+		format = exportFormatCSV
+	}
+	profile := strings.TrimSpace(r.URL.Query().Get("profile"))
+	if profile == "" {
+		profile = exportProfileRaw
+	}
+	if !isValidExportFormat(format) || !isValidExportProfile(profile) {
+		writeErrorMessage(w, http.StatusBadRequest, "export review", "format must be csv|json and profile must be raw|flat|summary")
+		return
+	}
+	repo, closeFn, err := openReadRepository(r.Context(), s.cfg.DBPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export review", err)
+		return
+	}
+	defer closeFn()
+	download, err := buildReviewExport(r.Context(), repo, storage.ListLatestReviewsFilter{
+		Category:   strings.TrimSpace(r.URL.Query().Get("category")),
+		ReviewType: strings.TrimSpace(r.URL.Query().Get("review_type")),
+		Platform:   strings.TrimSpace(r.URL.Query().Get("platform")),
+		WorkHref:   domain.NormalizeWorkHref(r.URL.Query().Get("work_href"), config.DefaultBaseURL),
+		Limit:      -1,
+	}, strings.TrimSpace(r.URL.Query().Get("run_id")), format, profile)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "export review", err)
+		return
+	}
+	writeDownload(w, download)
 }
 
 func (s *Server) handleDetailFetchState(w http.ResponseWriter, r *http.Request) {
@@ -628,6 +751,13 @@ func parsePositiveQueryInt(r *http.Request, key string, defaultValue int) int {
 		return defaultValue
 	}
 	return value
+}
+
+func writeDownload(w http.ResponseWriter, download exportDownload) {
+	w.Header().Set("Content-Type", download.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", download.Filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(download.Body)
 }
 
 func defaultPositive(value int, fallback int) int {

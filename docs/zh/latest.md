@@ -1,8 +1,8 @@
-# Latest commands
+# 榜单读侧
 
-The `latest` command group is read-only. It does not trigger crawling.
+`latest` 命令组是只读的，不会触发抓取。
 
-It focuses on current list views and list snapshot comparison.
+它只聚焦榜单当前视图与榜单快照对比。
 
 ## latest query
 
@@ -11,7 +11,7 @@ go run ./cmd/metacritic-harvester latest query --db=output/metacritic.db --categ
 go run ./cmd/metacritic-harvester latest query --db=output/metacritic.db --work-href=https://www.metacritic.com/game/alpha/ --format=json
 ```
 
-Supported flags:
+支持参数：
 
 - `--db`
 - `--category`
@@ -29,13 +29,13 @@ go run ./cmd/metacritic-harvester latest export --db=output/metacritic.db --run-
 go run ./cmd/metacritic-harvester latest export --db=output/metacritic.db --profile=summary --format=csv --output=output/latest-summary.csv
 ```
 
-Behavior:
+行为：
 
-- without `--run-id`, export reads `latest_list_entries`
-- with `--run-id`, export reads `list_entries`
-- `--profile=raw|flat|summary`
-- `raw` and `flat` are equivalent for list exports
-- `summary` returns aggregated counts and rank spans by run and filter range
+- 不传 `--run-id` 时读取 `latest_list_entries`
+- 传 `--run-id` 时读取 `list_entries`
+- 支持 `--profile=raw|flat|summary`
+- 对榜单导出来说，`raw` 和 `flat` 等价
+- `summary` 会返回按 run 与过滤范围聚合后的数量和名次区间
 
 ## latest compare
 
@@ -45,15 +45,15 @@ go run ./cmd/metacritic-harvester latest compare --db=output/metacritic.db --fro
 go run ./cmd/metacritic-harvester latest compare --db=output/metacritic.db --from-run-id=<run-a> --to-run-id=<run-b> --format=csv --include-unchanged
 ```
 
-Behavior:
+行为：
 
-- compare always reads `list_entries`
-- it does not compare `latest_list_entries`
-- `run_id` is the stable unit for historical list comparison
+- compare 永远读取 `list_entries`
+- 不直接比较 `latest_list_entries`
+- `run_id` 是稳定的历史榜单对比单位
 
-## Related commands
+## 相关命令
 
-Detail current-state and snapshot comparison live under the separate `detail` command group:
+详情当前态和历史对比放在独立的 `detail` 命令组：
 
 ```bash
 go run ./cmd/metacritic-harvester detail query --db=output/metacritic.db --category=game

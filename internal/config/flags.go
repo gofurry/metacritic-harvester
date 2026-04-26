@@ -27,8 +27,8 @@ func BuildListCommandConfig(opts ListCommandOptions) (ListCommandConfig, error) 
 		return ListCommandConfig{}, err
 	}
 
-	if opts.Pages <= 0 {
-		return ListCommandConfig{}, fmt.Errorf("pages must be greater than 0")
+	if opts.Pages < 0 {
+		return ListCommandConfig{}, fmt.Errorf("pages must be greater than or equal to 0")
 	}
 	if opts.MaxRetries < 0 {
 		return ListCommandConfig{}, fmt.Errorf("retries must be greater than or equal to 0")

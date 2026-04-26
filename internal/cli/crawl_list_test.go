@@ -101,6 +101,25 @@ func TestCrawlListCommandRejectsInvalidCategory(t *testing.T) {
 	}
 }
 
+func TestCrawlListCommandDefaultsToAllPages(t *testing.T) {
+	t.Parallel()
+
+	var captured config.ListCommandConfig
+	cmd := newCrawlListCommandWithRunner(func(_ context.Context, cfg config.ListCommandConfig) (app.ListRunResult, error) {
+		captured = cfg
+		return app.ListRunResult{}, nil
+	})
+
+	cmd.SetArgs([]string{"--category=game", "--metric=metascore"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if captured.Task.MaxPages != 0 {
+		t.Fatalf("expected default pages=0 for all-pages mode, got %d", captured.Task.MaxPages)
+	}
+}
+
 func TestCrawlListCommandRejectsUnsupportedFilterFlag(t *testing.T) {
 	t.Parallel()
 

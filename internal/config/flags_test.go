@@ -46,13 +46,30 @@ func TestBuildListCommandConfig(t *testing.T) {
 	}
 }
 
+func TestBuildListCommandConfigAllowsZeroPagesForAll(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := BuildListCommandConfig(ListCommandOptions{
+		Category: "game",
+		Metric:   "metascore",
+		Pages:    0,
+		DBPath:   "output/test.db",
+	})
+	if err != nil {
+		t.Fatalf("BuildListCommandConfig() error = %v", err)
+	}
+	if cfg.Task.MaxPages != 0 {
+		t.Fatalf("expected MaxPages 0 for all-pages mode, got %d", cfg.Task.MaxPages)
+	}
+}
+
 func TestBuildListCommandConfigRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
 	tests := []ListCommandOptions{
 		{Category: "bad", Metric: "metascore", Pages: 1, DBPath: "output/test.db"},
 		{Category: "game", Metric: "bad", Pages: 1, DBPath: "output/test.db"},
-		{Category: "game", Metric: "metascore", Pages: 0, DBPath: "output/test.db"},
+		{Category: "game", Metric: "metascore", Pages: -1, DBPath: "output/test.db"},
 		{Category: "game", Metric: "metascore", Pages: 1, DBPath: " ", Proxies: "http://127.0.0.1:7897"},
 		{Category: "game", Metric: "metascore", Pages: 1, DBPath: "output/test.db", Proxies: "bad-proxy"},
 		{Category: "game", Metric: "metascore", Pages: 1, DBPath: "output/test.db", Year: "2014:2011"},

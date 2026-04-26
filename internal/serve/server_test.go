@@ -50,6 +50,10 @@ func (s *stubTaskDispatcher) SubmitReview(config.ReviewCommandConfig) (TaskView,
 	return TaskView{ID: "task-review-1", Kind: "reviews", Status: TaskStatusPending}, nil
 }
 
+func (s *stubTaskDispatcher) SubmitBatch(string, config.BatchRunConfig) (TaskView, error) {
+	return TaskView{ID: "task-batch-1", Kind: "batch", Status: TaskStatusPending}, nil
+}
+
 func TestServerHealthAndConfig(t *testing.T) {
 	srv := NewServer(Config{
 		Addr:        "127.0.0.1:9090",
@@ -146,6 +150,75 @@ func TestServerWriteEndpointAllowsLoopbackWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestServerLatestExportEndpoint(t *testing.T) {
+	dbPath := seedLatestDB(t)
+	srv := NewServer(Config{DBPath: dbPath})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/export/latest?category=game&metric=metascore&format=csv&profile=summary", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /api/export/latest, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment;") {
+		t.Fatalf("expected attachment header, got %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "run_id,category,metric") {
+		t.Fatalf("expected CSV header in export body, got %q", rec.Body.String())
+	}
+}
+
+func TestServerDetailExportEndpoint(t *testing.T) {
+	dbPath := seedDetailDB(t)
+	srv := NewServer(Config{DBPath: dbPath})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/export/detail?category=game&format=json&profile=flat", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /api/export/detail, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment;") {
+		t.Fatalf("expected attachment header, got %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "\"work_href\"") {
+		t.Fatalf("expected JSON export body, got %q", rec.Body.String())
+	}
+}
+
+func TestServerReviewExportEndpoint(t *testing.T) {
+	dbPath := seedReviewDB(t)
+	srv := NewServer(Config{DBPath: dbPath})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/export/review?category=game&review_type=critic&format=csv&profile=summary", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /api/export/review, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment;") {
+		t.Fatalf("expected attachment header, got %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "run_id,category,review_type") {
+		t.Fatalf("expected CSV header in review export body, got %q", rec.Body.String())
+	}
+}
+
+func TestServerOverviewEndpoint(t *testing.T) {
+	dbPath := seedLatestDB(t)
+	srv := NewServer(Config{DBPath: dbPath})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/overview", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /api/overview, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"exports\"") || !strings.Contains(rec.Body.String(), "\"runs\"") {
+		t.Fatalf("expected overview payload, got %s", rec.Body.String())
+	}
+}
+
 func seedLatestDB(t *testing.T) string {
 	t.Helper()
 
@@ -192,5 +265,105 @@ func seedLatestDB(t *testing.T) string {
 		t.Fatalf("save list snapshots: %v", err)
 	}
 
+	return dbPath
+}
+
+func seedDetailDB(t *testing.T) string {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "serve-detail.db")
+	ctx := context.Background()
+	db, err := storage.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("open detail database: %v", err)
+	}
+	defer db.Close()
+
+	repo := storage.NewRepository(db)
+	workHref := "https://www.metacritic.com/game/test-detail/"
+	if _, err := db.ExecContext(ctx, "INSERT INTO works (href, name, category) VALUES (?, ?, ?)", workHref, "Test Detail", "game"); err != nil {
+		t.Fatalf("insert work: %v", err)
+	}
+	startedAt := time.Now().UTC()
+	if err := repo.CreateDetailCrawlRun(ctx, "detail-run-1", "game", "detail-game", "href=all|force=0|limit=all", startedAt); err != nil {
+		t.Fatalf("CreateDetailCrawlRun() error = %v", err)
+	}
+	if err := repo.SaveWorkDetail(ctx, domain.WorkDetail{
+		WorkHref:             workHref,
+		Category:             domain.CategoryGame,
+		Title:                "Test Detail",
+		Summary:              "Detail summary",
+		ReleaseDate:          "2025-02-01",
+		Metascore:            "91",
+		MetascoreSentiment:   "Universal Acclaim",
+		MetascoreReviewCount: 12,
+		UserScore:            "8.8",
+		UserScoreSentiment:   "Generally Favorable",
+		UserScoreCount:       88,
+		Rating:               "M",
+		Duration:             "",
+		Tagline:              "",
+		Details: domain.WorkDetailExtras{
+			Genres:     []string{"Action", "RPG"},
+			Platforms:  []string{"PC"},
+			Developers: []string{"Larian"},
+		},
+		LastFetchedAt: startedAt,
+	}, startedAt, "detail-run-1"); err != nil {
+		t.Fatalf("SaveWorkDetail() error = %v", err)
+	}
+	return dbPath
+}
+
+func seedReviewDB(t *testing.T) string {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "serve-review.db")
+	ctx := context.Background()
+	db, err := storage.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("open review database: %v", err)
+	}
+	defer db.Close()
+
+	repo := storage.NewRepository(db)
+	workHref := "https://www.metacritic.com/game/test-review/"
+	if _, err := db.ExecContext(ctx, "INSERT INTO works (href, name, category) VALUES (?, ?, ?)", workHref, "Test Review", "game"); err != nil {
+		t.Fatalf("insert work: %v", err)
+	}
+	startedAt := time.Now().UTC()
+	if err := repo.CreateReviewCrawlRun(ctx, "review-run-1", "crawl reviews", "reviews-game", "game", "category=game", startedAt); err != nil {
+		t.Fatalf("CreateReviewCrawlRun() error = %v", err)
+	}
+	score := 92.0
+	record := domain.ReviewRecord{
+		ReviewKey:         domain.BuildCriticReviewKey(workHref, domain.CategoryGame, "pc", "pc-gamer", "2025-02-01", "Excellent."),
+		CrawlRunID:        "review-run-1",
+		WorkHref:          workHref,
+		Category:          domain.CategoryGame,
+		ReviewType:        domain.ReviewTypeCritic,
+		PlatformKey:       "pc",
+		ReviewURL:         "https://example.test/review",
+		ReviewDate:        "2025-02-01",
+		Score:             &score,
+		Quote:             "Excellent.",
+		PublicationName:   "PC Gamer",
+		PublicationSlug:   "pc-gamer",
+		AuthorName:        "Pat",
+		AuthorSlug:        "pat",
+		SourcePayloadJSON: `{"kind":"critic"}`,
+		CrawledAt:         startedAt,
+	}
+	if err := repo.SaveReviewRecords(ctx, []domain.ReviewRecord{record}); err != nil {
+		t.Fatalf("SaveReviewRecords() error = %v", err)
+	}
+	if err := repo.MarkReviewSucceeded(ctx, domain.ReviewScope{
+		WorkHref:    workHref,
+		Category:    domain.CategoryGame,
+		ReviewType:  domain.ReviewTypeCritic,
+		PlatformKey: "pc",
+	}, startedAt, startedAt, "review-run-1"); err != nil {
+		t.Fatalf("MarkReviewSucceeded() error = %v", err)
+	}
 	return dbPath
 }

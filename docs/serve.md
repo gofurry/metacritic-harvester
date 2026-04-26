@@ -1,11 +1,11 @@
 # Serve
 
-`serve` starts a local HTTP server on top of the existing repository, storage, and app services.
+`serve` starts a local HTTP runtime on top of the existing repository, storage, and app services.
 
 It supports two modes:
 
-- backend-only: JSON API only
-- full-stack: JSON API plus an embedded lightweight control panel
+- backend-only
+- full-stack with an embedded Vue control panel
 
 ## Quick start
 
@@ -24,7 +24,7 @@ go run ./cmd/metacritic-harvester serve --db=output/metacritic.db --full-stack -
 Default address:
 
 ```text
-127.0.0.1:8080
+127.0.0.1:36666
 ```
 
 ## Flags
@@ -38,18 +38,19 @@ Default address:
 
 ## Security baseline
 
-- the server binds to loopback by default
-- write endpoints are disabled by default
-- when write endpoints are enabled, they still only accept loopback requests
-- the backend mode exposes API endpoints only
+- binds to loopback by default
+- read-only by default
+- write endpoints require `--enable-write`
+- write requests are still limited to loopback in the default baseline
 
-## API overview
+See [Serve baseline](./serve-baseline.md).
 
-Read endpoints:
+## Read endpoints
 
 - `GET /healthz`
 - `GET /api/config`
 - `GET /api/runs`
+- `GET /api/overview`
 - `GET /api/tasks`
 - `GET /api/tasks/{id}`
 - `GET /api/logs`
@@ -57,17 +58,43 @@ Read endpoints:
 - `GET /api/latest`
 - `GET /api/detail`
 - `GET /api/review`
+- `GET /api/export/latest`
+- `GET /api/export/detail`
+- `GET /api/export/review`
 - `GET /api/detail/state`
 - `GET /api/review/state`
 
-Write endpoints:
+## Write endpoints
 
 - `POST /api/tasks/list`
 - `POST /api/tasks/detail`
 - `POST /api/tasks/reviews`
 
-## Notes
+## Export downloads
 
-- the full-stack UI is intentionally small and uses embedded static assets
-- live crawl logs are exposed through Server-Sent Events at `/api/logs/stream`
-- task execution reuses the existing app services, so crawl logging and run tracking stay consistent with the CLI
+The service exposes browser-friendly download endpoints for:
+
+- `latest`
+- `detail`
+- `review`
+
+Query parameters stay close to the CLI export commands:
+
+- `format=csv|json`
+- `profile=raw|flat|summary`
+- `run_id` for snapshot exports
+- the same category/work/platform/filter-style selectors already supported by each export
+
+Downloads stream directly to the client and do not write files on the server.
+
+## Current web-console scope
+
+The embedded console currently focuses on:
+
+- launching `list / detail / reviews`
+- viewing recent runs
+- viewing in-process tasks
+- downloading exports
+- watching live crawl logs
+
+Batch and schedule execution remain CLI-driven. The console documents that workflow instead of triggering it over HTTP.

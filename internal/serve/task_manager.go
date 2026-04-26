@@ -46,11 +46,13 @@ type taskDispatcher interface {
 	SubmitList(config.ListCommandConfig) (TaskView, error)
 	SubmitDetail(config.DetailCommandConfig) (TaskView, error)
 	SubmitReview(config.ReviewCommandConfig) (TaskView, error)
+	SubmitBatch(string, config.BatchRunConfig) (TaskView, error)
 }
 
 type TaskManager struct {
 	cfg              Config
 	rootCtx          context.Context
+	newBatchService  func(string) batchTaskRunner
 	newListService   func(app.ListServiceConfig) listTaskRunner
 	newDetailService func(app.DetailServiceConfig) detailTaskRunner
 	newReviewService func(app.ReviewServiceConfig) reviewTaskRunner
@@ -69,6 +71,9 @@ func NewTaskManager(rootCtx context.Context, cfg Config) *TaskManager {
 		cfg:       cfg,
 		rootCtx:   rootCtx,
 		dbLockSet: newServeDBLockSet(),
+		newBatchService: func(baseURL string) batchTaskRunner {
+			return app.NewBatchService(baseURL)
+		},
 		newListService: func(cfg app.ListServiceConfig) listTaskRunner {
 			return app.NewListService(cfg)
 		},
@@ -120,6 +125,12 @@ func (m *TaskManager) SubmitDetail(cfg config.DetailCommandConfig) (TaskView, er
 func (m *TaskManager) SubmitReview(cfg config.ReviewCommandConfig) (TaskView, error) {
 	task := m.createTask("reviews")
 	go m.runReviewTask(task.ID, cfg)
+	return task, nil
+}
+
+func (m *TaskManager) SubmitBatch(fileName string, cfg config.BatchRunConfig) (TaskView, error) {
+	task := m.createTask("batch")
+	go m.runBatchTask(task.ID, fileName, cfg)
 	return task, nil
 }
 
@@ -239,6 +250,48 @@ func (m *TaskManager) runReviewTask(id string, cfg config.ReviewCommandConfig) {
 	m.finishTask(id, result.RunID, result.RequestedSource, result.EffectiveSource, result.FallbackUsed, result.FallbackReason, outcome, err)
 }
 
+func (m *TaskManager) runBatchTask(id string, fileName string, cfg config.BatchRunConfig) {
+	dbPath := primaryBatchDBPath(cfg.Tasks)
+	if dbPath != "" {
+		unlock := m.dbLockSet.Lock(dbPath)
+		defer unlock()
+	}
+
+	m.markRunning(id)
+	ctx, cancel := context.WithTimeout(m.rootCtx, 45*time.Minute)
+	defer cancel()
+
+	service := m.newBatchService(firstNonEmptyString(m.cfg.BaseURL, config.DefaultBaseURL))
+	result := service.RunWithConcurrency(ctx, cfg.Tasks, cfg.Concurrency)
+	outcome := map[string]any{
+		"file":                     fileName,
+		"total_tasks":              result.TotalTasks,
+		"succeeded_tasks":          result.SucceededTasks,
+		"failed_tasks":             result.FailedTasks,
+		"pages_scheduled":          result.TotalPagesScheduled,
+		"pages_succeeded":          result.TotalPagesSucceeded,
+		"pages_written":            result.TotalPagesWritten,
+		"works_upserted":           result.TotalWorksUpserted,
+		"list_entries_inserted":    result.TotalListEntriesInserted,
+		"latest_entries_upserted":  result.TotalLatestEntriesUpserted,
+		"detail_processed":         result.TotalDetailProcessed,
+		"detail_fetched":           result.TotalDetailFetched,
+		"detail_skipped":           result.TotalDetailSkipped,
+		"detail_recovered_running": result.TotalRecoveredRunning,
+		"details_upserted":         result.TotalDetailsUpserted,
+		"review_scopes_scheduled":  result.TotalReviewScopesScheduled,
+		"review_scopes_fetched":    result.TotalReviewScopesFetched,
+		"review_scopes_skipped":    result.TotalReviewScopesSkipped,
+		"review_scopes_failed":     result.TotalReviewScopesFailed,
+		"reviews_fetched":          result.TotalReviewsFetched,
+		"review_snapshots_saved":   result.TotalReviewSnapshotsSaved,
+		"review_latest_upserted":   result.TotalReviewLatestUpserted,
+		"failures":                 result.TotalFailures,
+		"tasks":                    result.Tasks,
+	}
+	m.finishTask(id, "", "api", "api", false, "", outcome, result.Error())
+}
+
 func (m *TaskManager) markRunning(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -291,6 +344,10 @@ type reviewTaskRunner interface {
 	Run(context.Context, domain.ReviewTask) (app.ReviewRunResult, error)
 }
 
+type batchTaskRunner interface {
+	RunWithConcurrency(context.Context, []config.BatchTaskConfig, int) app.BatchRunResult
+}
+
 type serveDBLockSet struct {
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
@@ -312,4 +369,19 @@ func (s *serveDBLockSet) Lock(dbPath string) func() {
 
 	lock.Lock()
 	return func() { lock.Unlock() }
+}
+
+func primaryBatchDBPath(tasks []config.BatchTaskConfig) string {
+	for _, task := range tasks {
+		if task.List != nil {
+			return task.List.DBPath
+		}
+		if task.Detail != nil {
+			return task.Detail.DBPath
+		}
+		if task.Review != nil {
+			return task.Review.DBPath
+		}
+	}
+	return ""
 }

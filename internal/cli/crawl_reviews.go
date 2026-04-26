@@ -97,7 +97,7 @@ func newCrawlReviewsCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&opts.Category, "category", "", "Optional category filter: game|movie|tv")
 	cmd.Flags().StringVar(&opts.WorkHref, "work-href", "", "Optional work href filter")
-	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of works to process")
+	cmd.Flags().IntVar(&opts.Limit, "limit", 0, "Maximum number of works to process for review crawling; 0 means all candidates")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "Re-crawl scopes even if they already succeeded")
 	cmd.Flags().IntVar(&opts.Concurrency, "concurrency", 1, "Maximum number of work scopes to run concurrently")
 	cmd.Flags().StringVar(&opts.ReviewType, "review-type", "all", "Review type: critic|user|all")

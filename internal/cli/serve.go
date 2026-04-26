@@ -44,7 +44,7 @@ func newServeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8080", "Listen address for the HTTP server")
+	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:36666", "Listen address for the HTTP server")
 	cmd.Flags().StringVar(&dbPath, "db", "output/metacritic.db", "SQLite database path")
 	cmd.Flags().BoolVar(&fullStack, "full-stack", false, "Serve the embedded control-panel frontend")
 	cmd.Flags().BoolVar(&enableWrite, "enable-write", false, "Enable task-triggering write endpoints (local requests only)")

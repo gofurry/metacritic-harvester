@@ -114,7 +114,7 @@ func newCrawlListCommandWithRunner(runner func(context.Context, config.ListComma
 	cmd.Flags().StringVar(&opts.Network, "network", "", "Comma-separated movie/tv networks; movie|tv only")
 	cmd.Flags().StringVar(&opts.Genre, "genre", "", "Comma-separated genres")
 	cmd.Flags().StringVar(&opts.ReleaseType, "release-type", "", "Comma-separated release types; game|movie only")
-	cmd.Flags().IntVar(&opts.Pages, "pages", 1, "Maximum number of pages to crawl")
+	cmd.Flags().IntVar(&opts.Pages, "pages", 0, "Maximum number of pages to crawl; 0 means all pages")
 	cmd.Flags().StringVar(&opts.DBPath, "db", "output/metacritic.db", "SQLite database path")
 	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "Enable debug logging")
 	cmd.Flags().IntVar(&opts.MaxRetries, "retries", 3, "Maximum retries per request")
