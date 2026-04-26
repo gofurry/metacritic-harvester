@@ -189,7 +189,7 @@ func readNuxtSample(t *testing.T, name string) string {
 		t.Fatal("runtime.Caller() failed")
 	}
 
-	path := filepath.Join(filepath.Dir(file), "..", "..", "..", "docs", "sample", name)
+	path := filepath.Join(filepath.Dir(file), "testdata", name)
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)

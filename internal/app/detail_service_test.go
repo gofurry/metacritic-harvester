@@ -771,7 +771,7 @@ func readRootNuxtSample(t *testing.T, name string) string {
 		t.Fatal("runtime.Caller() failed")
 	}
 
-	body, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "docs", "sample", name))
+	body, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "source", "metacritic", "testdata", name))
 	if err != nil {
 		t.Fatalf("ReadFile(%s) error = %v", name, err)
 	}
