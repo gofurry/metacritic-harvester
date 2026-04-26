@@ -207,7 +207,7 @@
 
 ## Phase 5.5：进入 `serve` 之前的补强
 
-状态：P0 / P1 已完成，P2 待实施
+状态：P0 / P1 / P2 已完成
 
 目标：
 
@@ -242,14 +242,17 @@ P1：
 
 P2：
 
-- [ ] 预先定义 `serve` 的安全基线：默认绑定地址、任务触发权限边界、写操作暴露范围、导出文件路径约束等，避免 Phase 6 再临时拼接
-- [ ] 将 `crawl_runs`、`fetch_state`、export summary 收敛成一套更完整的运行观测模型，为之后的控制台提供统一数据来源
-- [ ] 评估 SQLite 在 `serve` 场景下的 WAL 增长、读写并发、checkpoint 策略和极限约束，明确 Phase 6 是否需要先补更重的存储抽象
-- [ ] 评估当前 `source adapter` 抽象是否足够支撑后续更多站点或更多后端 API，避免进入 Phase 6 后再做大重构
+- [x] 预先定义 `serve` 的安全基线：默认仅绑定 `127.0.0.1`；默认只开放健康检查、只读查询和只读导出；抓取触发、batch 执行、schedule 变更、导出落盘等写操作默认关闭，且后续即使开启也仅允许本机访问
+- [x] 明确导出文件路径约束：Phase 6 不允许通过 API 写入任意绝对路径；导出落盘仅允许受控目录（建议 `output/exports`），也不允许覆盖 repo 内任意路径
+- [x] 将 `crawl_runs`、`detail_fetch_state`、`review_fetch_state` 与现有 export summary 收敛为统一运行观测模型：最近运行列表来自 `crawl_runs`，当前抓取状态来自 `*_fetch_state`，聚合摘要优先复用现有 `summary` 导出统计口径，不新增物化观测表
+- [x] 明确 Phase 6 的最小观测实体：`RunStatusView`（运行基本信息）、`RunOutcomeView`（list/detail/review 的结果统计与 fallback/enrich 诊断）、`FetchStateView`（detail/review 的最近状态与错误信息），优先在 repository/service 层做只读聚合
+- [x] 评估 SQLite 服务化边界并形成结论：Phase 6 继续使用 SQLite，不提前抽象成更重后端；默认保持 WAL 模式并保留显式 checkpoint 能力；同一 DB 的写任务仍应串行或受严格 gate 控制；读多写少是前提，若后续出现高频并发写入，再进入新阶段评估存储升级
+- [x] 明确 Phase 6 前的非功能性验证重点：观测 WAL 增长、长读查询与写任务并发下的 `SQLITE_BUSY` 风险、checkpoint 后 WAL 回收效果
+- [x] 评估当前抽象边界：storage 已足够支撑 `serve` 的只读/读写分离；`list/detail/review` 的 app service 可直接复用为任务执行层；CLI 格式化层不直接搬进 HTTP，HTTP 只复用 repository/service；当前 `source adapter` 先不重构，除非后续扩展到更多站点才再评估
 
 ## Phase 6：服务化
 
-状态：未开始
+状态：进行中
 
 目标：
 
@@ -257,18 +260,28 @@ P2：
 - 复用现有 `app + storage + source`
 - 提供 HTTP 查询和任务触发入口
 - `serve` 默认以纯后端模式启动，仅暴露 API、健康检查和任务触发接口
-- 通过参数可开启全栈模式；全栈模式会额外提供一个 embed 到二进制的简易控制台前端页面
-- 前端控制台保持轻量，用于查看运行状态、触发任务和浏览基础结果
+- 通过参数可开启全栈模式；全栈模式会额外提供一个 embed 到二进制的控制台前端页面
+- 前端控制台用于查看运行状态、触发任务、浏览结果和实时观察采集日志进度
+
+当前进展：
+
+- [x] 新增 `serve` 命令，并接入根 CLI
+- [x] 提供基础 HTTP API：健康检查、配置、运行列表、任务列表、日志、latest/detail/review 查询、detail/review fetch state
+- [x] 提供本机写入保护下的任务触发接口：`list / detail / reviews`
+- [x] 接入任务管理器，复用现有 `app service` 执行抓取任务
+- [x] 提供实时日志流接口：`/api/logs/stream`
+- [x] 提供嵌入式全栈前端控制台，可查看任务、运行、查询结果和实时日志
+- [ ] 继续补服务端导出、批量/调度控制与更完整的运维面板
 
 ## 建议优先级
 
 下一步更推荐按这个顺序推进：
 
-1. Phase 5.5：进入 `serve` 之前的补强
-2. Phase 6：`serve`
+1. Phase 6：补齐 `serve` 的剩余控制面与导出能力
+2. 后续服务化增强：更细的运维、鉴权和存储演进
 
 原因：
 
-- 当前抓取与读侧主链路已经齐备，进入 `serve` 之前更值得做的是把运行语义、fallback、速率控制和观测模型补扎实
-- Phase 5.5 做完之后，Phase 6 可以更专注于服务边界、接口设计和控制台交互，而不是一边服务化一边补基础设施
-- 这些补强同时也会提升 CLI / batch / schedule 的稳定性，不只是为后续 HTTP 服务做准备
+- 当前抓取与读侧主链路、运行护栏和观测基线已经具备，Phase 6 可以直接围绕服务边界、接口设计和控制台交互推进
+- 现阶段最值得继续投入的是把 `serve` 的操作面、结果面和导出面补完整，而不是再回头补基础设施
+- SQLite、fallback、速率控制和本机安全边界已经前置收口，可以作为后续服务化迭代的稳定底座

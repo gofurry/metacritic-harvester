@@ -37,6 +37,7 @@ go run ./cmd/metacritic-harvester review --help
 - `crawl reviews`
 - `crawl batch`
 - `crawl schedule`
+- `serve`
 - `detail query`
 - `detail export`
 - `detail compare`
@@ -425,3 +426,24 @@ go test ./...
 - 批量并发
 - schedule 配置与触发
 - latest query/export/compare
+
+## serve
+
+Start backend only:
+
+```bash
+go run ./cmd/metacritic-harvester serve --db=output/metacritic.db
+```
+
+Start the embedded full-stack console:
+
+```bash
+go run ./cmd/metacritic-harvester serve --db=output/metacritic.db --full-stack --enable-write
+```
+
+Notes:
+
+- default bind address is `127.0.0.1:8080`
+- `--full-stack` serves the embedded control panel
+- write endpoints are disabled by default
+- crawl logs can be streamed from `/api/logs/stream`

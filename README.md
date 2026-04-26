@@ -14,6 +14,7 @@ Current features:
 - `crawl reviews`
 - `crawl batch`
 - `crawl schedule`
+- `serve`
 - `detail query`
 - `detail export`
 - `detail compare`
@@ -41,6 +42,7 @@ go run ./cmd/metacritic-harvester crawl list --category=game --metric=metascore 
 go run ./cmd/metacritic-harvester crawl detail --db=output/metacritic.db --category=game --source=api
 go run ./cmd/metacritic-harvester crawl reviews --db=output/metacritic.db --category=game --review-type=critic --limit=10
 go run ./cmd/metacritic-harvester detail query --db=output/metacritic.db --category=game
+go run ./cmd/metacritic-harvester serve --db=output/metacritic.db --full-stack --enable-write
 ```
 
 Source behavior:
@@ -93,11 +95,20 @@ Docs:
 - [Chinese overview](./docs/README_zh.md)
 - [Roadmap](./docs/roadmap.md)
 - [Usage](./docs/usage.md)
+- [Serve baseline](./docs/serve-baseline.md)
+- [Serve command](./docs/serve.md)
 - [Batch tasks](./docs/batch-tasks.md)
 - [Latest commands](./docs/latest.md)
 - [Detail query/export/compare](./docs/usage.md#detail-query)
 - [Scheduling](./docs/scheduling.md)
 - [Filters](./docs/filters.md)
+
+Future `serve` baseline:
+
+- default bind address will be `127.0.0.1`
+- default mode will be read-only
+- write operations will require explicit enablement and stay local-only in the default baseline
+- server-side export writes will be limited to a controlled output directory
 
 ## Tooling
 
