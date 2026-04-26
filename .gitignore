@@ -2,4 +2,4 @@
 !/output/.gitkeep
 /internal/serve/frontend/node_modules/
 /docs/sample/*
-!/output/.gitkeep
+!/doc/sample/.gitkeep
