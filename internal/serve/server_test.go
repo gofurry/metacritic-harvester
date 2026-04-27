@@ -16,8 +16,13 @@ import (
 )
 
 type stubTaskDispatcher struct {
-	listTask   TaskView
-	listCalled bool
+	listTask     TaskView
+	listCalled   bool
+	listCfg      config.ListCommandConfig
+	detailCfg    config.DetailCommandConfig
+	reviewCfg    config.ReviewCommandConfig
+	detailCalled bool
+	reviewCalled bool
 }
 
 func (s *stubTaskDispatcher) List() []TaskView {
@@ -34,19 +39,24 @@ func (s *stubTaskDispatcher) Get(id string) (TaskView, bool) {
 	return TaskView{}, false
 }
 
-func (s *stubTaskDispatcher) SubmitList(config.ListCommandConfig) (TaskView, error) {
+func (s *stubTaskDispatcher) SubmitList(cfg config.ListCommandConfig) (TaskView, error) {
 	s.listCalled = true
+	s.listCfg = cfg
 	if s.listTask.ID == "" {
 		s.listTask = TaskView{ID: "task-list-1", Kind: "list", Status: TaskStatusPending}
 	}
 	return s.listTask, nil
 }
 
-func (s *stubTaskDispatcher) SubmitDetail(config.DetailCommandConfig) (TaskView, error) {
+func (s *stubTaskDispatcher) SubmitDetail(cfg config.DetailCommandConfig) (TaskView, error) {
+	s.detailCalled = true
+	s.detailCfg = cfg
 	return TaskView{ID: "task-detail-1", Kind: "detail", Status: TaskStatusPending}, nil
 }
 
-func (s *stubTaskDispatcher) SubmitReview(config.ReviewCommandConfig) (TaskView, error) {
+func (s *stubTaskDispatcher) SubmitReview(cfg config.ReviewCommandConfig) (TaskView, error) {
+	s.reviewCalled = true
+	s.reviewCfg = cfg
 	return TaskView{ID: "task-review-1", Kind: "reviews", Status: TaskStatusPending}, nil
 }
 
@@ -135,7 +145,7 @@ func TestServerWriteEndpointAllowsLoopbackWhenEnabled(t *testing.T) {
 	srv := NewServer(Config{EnableWrite: true})
 	srv.tasks = dispatcher
 
-	body := `{"category":"game","metric":"metascore","pages":1,"source":"api"}`
+	body := `{"category":"game","metric":"metascore","pages":0,"source":"api","timeout":"12h","continue_on_error":false,"rps":5.5,"burst":8}`
 	req := httptest.NewRequest(http.MethodPost, "/api/tasks/list", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.RemoteAddr = "127.0.0.1:5050"
@@ -147,6 +157,50 @@ func TestServerWriteEndpointAllowsLoopbackWhenEnabled(t *testing.T) {
 	}
 	if !dispatcher.listCalled {
 		t.Fatalf("expected list task dispatcher to be called")
+	}
+	if dispatcher.listCfg.Timeout != 12*time.Hour || dispatcher.listCfg.ContinueOnError || dispatcher.listCfg.RPS != 5.5 || dispatcher.listCfg.Burst != 8 {
+		t.Fatalf("unexpected list config: %+v", dispatcher.listCfg)
+	}
+	if dispatcher.listCfg.Task.MaxPages != 0 {
+		t.Fatalf("expected pages=0 to be preserved, got %+v", dispatcher.listCfg)
+	}
+}
+
+func TestServerDetailAndReviewWriteEndpointsAcceptRuntimeControls(t *testing.T) {
+	dispatcher := &stubTaskDispatcher{}
+	srv := NewServer(Config{EnableWrite: true})
+	srv.tasks = dispatcher
+
+	detailBody := `{"category":"game","source":"api","limit":0,"concurrency":6,"timeout":"24h","continue_on_error":true,"rps":6,"burst":12}`
+	detailReq := httptest.NewRequest(http.MethodPost, "/api/tasks/detail", strings.NewReader(detailBody))
+	detailReq.Header.Set("Content-Type", "application/json")
+	detailReq.RemoteAddr = "127.0.0.1:5050"
+	detailRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(detailRec, detailReq)
+	if detailRec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 for accepted detail task, got %d: %s", detailRec.Code, detailRec.Body.String())
+	}
+	if !dispatcher.detailCalled {
+		t.Fatal("expected detail task dispatcher to be called")
+	}
+	if dispatcher.detailCfg.Timeout != 24*time.Hour || !dispatcher.detailCfg.ContinueOnError || dispatcher.detailCfg.RPS != 6 || dispatcher.detailCfg.Burst != 12 {
+		t.Fatalf("unexpected detail config: %+v", dispatcher.detailCfg)
+	}
+
+	reviewBody := `{"category":"game","review_type":"all","limit":0,"concurrency":3,"timeout":"48h","continue_on_error":false,"rps":4,"burst":8}`
+	reviewReq := httptest.NewRequest(http.MethodPost, "/api/tasks/reviews", strings.NewReader(reviewBody))
+	reviewReq.Header.Set("Content-Type", "application/json")
+	reviewReq.RemoteAddr = "127.0.0.1:5050"
+	reviewRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(reviewRec, reviewReq)
+	if reviewRec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 for accepted review task, got %d: %s", reviewRec.Code, reviewRec.Body.String())
+	}
+	if !dispatcher.reviewCalled {
+		t.Fatal("expected review task dispatcher to be called")
+	}
+	if dispatcher.reviewCfg.Timeout != 48*time.Hour || dispatcher.reviewCfg.ContinueOnError || dispatcher.reviewCfg.RPS != 4 || dispatcher.reviewCfg.Burst != 8 {
+		t.Fatalf("unexpected review config: %+v", dispatcher.reviewCfg)
 	}
 }
 

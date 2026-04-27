@@ -25,6 +25,10 @@ const messages = {
       metric: "Metric",
       source: "Source",
       pages: "Pages",
+      timeout: "Timeout",
+      continueOnError: "Continue",
+      rps: "RPS",
+      burst: "Burst",
       workHref: "Work href",
       limit: "Limit",
       workers: "Workers",
@@ -81,6 +85,7 @@ const messages = {
       loading: "Loading...",
       writeDisabledHint:
         "Write controls are disabled in read-only mode. Restart serve with --enable-write to trigger crawls from the console.",
+      timeoutPlaceholder: "3h | 90m | 24h",
       optionalSingleWork: "optional single work",
       sortPlaceholder: "date | score | publication",
       runIdPlaceholder: "optional snapshot run id",
@@ -264,14 +269,27 @@ const tasksPage = ref(1);
 const exportMessage = ref("");
 const orchestrationMessage = ref("");
 
-const listForm = reactive({ category: "game", metric: "metascore", source: "api", pages: 0 });
+const listForm = reactive({
+  category: "game",
+  metric: "metascore",
+  source: "api",
+  pages: 0,
+  timeout: "3h",
+  continue_on_error: true,
+  rps: 2,
+  burst: 2
+});
 const detailForm = reactive({
   category: "game",
   work_href: "",
   source: "api",
   limit: 0,
   concurrency: 1,
-  force: false
+  force: false,
+  timeout: "3h",
+  continue_on_error: true,
+  rps: 2,
+  burst: 2
 });
 const reviewForm = reactive({
   category: "game",
@@ -279,7 +297,11 @@ const reviewForm = reactive({
   sentiment: "all",
   sort: "",
   limit: 0,
-  concurrency: 1
+  concurrency: 1,
+  timeout: "3h",
+  continue_on_error: true,
+  rps: 2,
+  burst: 2
 });
 
 const latestExport = reactive({
@@ -316,7 +338,9 @@ function currentMessages() {
 }
 
 function t(path) {
-  return path.split(".").reduce((value, key) => value?.[key], currentMessages()) ?? path;
+  const localized = path.split(".").reduce((value, key) => value?.[key], currentMessages());
+  if (localized !== undefined && localized !== null) return localized;
+  return path.split(".").reduce((value, key) => value?.[key], messages.en) ?? path;
 }
 
 function setLocale(nextLocale) {
@@ -617,6 +641,45 @@ onBeforeUnmount(() => {
                   />
                 </label>
               </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.timeout") }}</span>
+                  <input
+                    v-model="listForm.timeout"
+                    type="text"
+                    :placeholder="t('text.timeoutPlaceholder')"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="flex items-center gap-2 pt-6 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <input
+                    v-model="listForm.continue_on_error"
+                    type="checkbox"
+                    class="h-4 w-4 rounded-none border border-line bg-bg"
+                  />
+                  <span>{{ t("labels.continueOnError") }}</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.rps") }}</span>
+                  <input
+                    v-model.number="listForm.rps"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.burst") }}</span>
+                  <IntegerField
+                    v-model="listForm.burst"
+                    :min="1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+              </div>
               <button
                 :disabled="!serverConfig.enable_write"
                 class="w-full border border-accent/40 bg-accent-soft px-3 py-2 text-sm font-medium text-white transition hover:border-accent hover:bg-accent/18 disabled:opacity-40"
@@ -660,6 +723,45 @@ onBeforeUnmount(() => {
                   <span>{{ t("labels.workers") }}</span>
                   <IntegerField
                     v-model="detailForm.concurrency"
+                    :min="1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.timeout") }}</span>
+                  <input
+                    v-model="detailForm.timeout"
+                    type="text"
+                    :placeholder="t('text.timeoutPlaceholder')"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="flex items-center gap-2 pt-6 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <input
+                    v-model="detailForm.continue_on_error"
+                    type="checkbox"
+                    class="h-4 w-4 rounded-none border border-line bg-bg"
+                  />
+                  <span>{{ t("labels.continueOnError") }}</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.rps") }}</span>
+                  <input
+                    v-model.number="detailForm.rps"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.burst") }}</span>
+                  <IntegerField
+                    v-model="detailForm.burst"
                     :min="1"
                     class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
                   />
@@ -720,6 +822,45 @@ onBeforeUnmount(() => {
                   <span>{{ t("labels.workers") }}</span>
                   <IntegerField
                     v-model="reviewForm.concurrency"
+                    :min="1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.timeout") }}</span>
+                  <input
+                    v-model="reviewForm.timeout"
+                    type="text"
+                    :placeholder="t('text.timeoutPlaceholder')"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="flex items-center gap-2 pt-6 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <input
+                    v-model="reviewForm.continue_on_error"
+                    type="checkbox"
+                    class="h-4 w-4 rounded-none border border-line bg-bg"
+                  />
+                  <span>{{ t("labels.continueOnError") }}</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.rps") }}</span>
+                  <input
+                    v-model.number="reviewForm.rps"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
+                  />
+                </label>
+                <label class="space-y-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  <span>{{ t("labels.burst") }}</span>
+                  <IntegerField
+                    v-model="reviewForm.burst"
                     :min="1"
                     class="w-full border border-line bg-bg px-3 py-2 text-sm text-text outline-none transition hover:border-line-strong"
                   />

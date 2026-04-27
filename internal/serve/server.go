@@ -504,18 +504,22 @@ func (s *Server) handleReviewFetchState(w http.ResponseWriter, r *http.Request) 
 }
 
 type listTaskRequest struct {
-	Category    string `json:"category"`
-	Metric      string `json:"metric"`
-	Source      string `json:"source"`
-	Year        string `json:"year"`
-	Platform    string `json:"platform"`
-	Network     string `json:"network"`
-	Genre       string `json:"genre"`
-	ReleaseType string `json:"release_type"`
-	Pages       int    `json:"pages"`
-	Debug       bool   `json:"debug"`
-	Retries     int    `json:"retries"`
-	Proxies     string `json:"proxies"`
+	Category        string  `json:"category"`
+	Metric          string  `json:"metric"`
+	Source          string  `json:"source"`
+	Year            string  `json:"year"`
+	Platform        string  `json:"platform"`
+	Network         string  `json:"network"`
+	Genre           string  `json:"genre"`
+	ReleaseType     string  `json:"release_type"`
+	Pages           int     `json:"pages"`
+	Timeout         string  `json:"timeout"`
+	ContinueOnError *bool   `json:"continue_on_error"`
+	RPS             float64 `json:"rps"`
+	Burst           int     `json:"burst"`
+	Debug           bool    `json:"debug"`
+	Retries         int     `json:"retries"`
+	Proxies         string  `json:"proxies"`
 }
 
 func (s *Server) handleSubmitList(w http.ResponseWriter, r *http.Request) {
@@ -533,20 +537,30 @@ func (s *Server) handleSubmitList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	timeout, err := parseOptionalDuration(req.Timeout, config.DefaultCrawlCommandTimeout)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "submit list task", err)
+		return
+	}
+
 	cfg, err := config.BuildListCommandConfig(config.ListCommandOptions{
-		Category:    req.Category,
-		Metric:      req.Metric,
-		Source:      req.Source,
-		Year:        req.Year,
-		Platform:    req.Platform,
-		Network:     req.Network,
-		Genre:       req.Genre,
-		ReleaseType: req.ReleaseType,
-		Pages:       defaultPositive(req.Pages, 1),
-		DBPath:      s.cfg.DBPath,
-		Debug:       req.Debug,
-		MaxRetries:  defaultNonNegative(req.Retries, 3),
-		Proxies:     req.Proxies,
+		Category:        req.Category,
+		Metric:          req.Metric,
+		Source:          req.Source,
+		Year:            req.Year,
+		Platform:        req.Platform,
+		Network:         req.Network,
+		Genre:           req.Genre,
+		ReleaseType:     req.ReleaseType,
+		Pages:           defaultZeroOrPositive(req.Pages, 1),
+		DBPath:          s.cfg.DBPath,
+		Debug:           req.Debug,
+		Timeout:         timeout,
+		ContinueOnError: defaultBool(req.ContinueOnError, true),
+		RPS:             defaultFloat64(req.RPS, config.DefaultCrawlRateRPS),
+		Burst:           defaultPositive(req.Burst, config.DefaultCrawlRateBurst),
+		MaxRetries:      defaultNonNegative(req.Retries, 3),
+		Proxies:         req.Proxies,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "submit list task", err)
@@ -562,15 +576,19 @@ func (s *Server) handleSubmitList(w http.ResponseWriter, r *http.Request) {
 }
 
 type detailTaskRequest struct {
-	Category    string `json:"category"`
-	WorkHref    string `json:"work_href"`
-	Source      string `json:"source"`
-	Limit       int    `json:"limit"`
-	Force       bool   `json:"force"`
-	Concurrency int    `json:"concurrency"`
-	Debug       bool   `json:"debug"`
-	Retries     int    `json:"retries"`
-	Proxies     string `json:"proxies"`
+	Category        string  `json:"category"`
+	WorkHref        string  `json:"work_href"`
+	Source          string  `json:"source"`
+	Limit           int     `json:"limit"`
+	Force           bool    `json:"force"`
+	Concurrency     int     `json:"concurrency"`
+	Timeout         string  `json:"timeout"`
+	ContinueOnError *bool   `json:"continue_on_error"`
+	RPS             float64 `json:"rps"`
+	Burst           int     `json:"burst"`
+	Debug           bool    `json:"debug"`
+	Retries         int     `json:"retries"`
+	Proxies         string  `json:"proxies"`
 }
 
 func (s *Server) handleSubmitDetail(w http.ResponseWriter, r *http.Request) {
@@ -588,17 +606,27 @@ func (s *Server) handleSubmitDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	timeout, err := parseOptionalDuration(req.Timeout, config.DefaultCrawlCommandTimeout)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "submit detail task", err)
+		return
+	}
+
 	cfg, err := config.BuildDetailCommandConfig(config.DetailCommandOptions{
-		Category:    req.Category,
-		WorkHref:    req.WorkHref,
-		Source:      req.Source,
-		Limit:       defaultNonNegative(req.Limit, 0),
-		Force:       req.Force,
-		DBPath:      s.cfg.DBPath,
-		Debug:       req.Debug,
-		MaxRetries:  defaultNonNegative(req.Retries, 3),
-		Proxies:     req.Proxies,
-		Concurrency: defaultPositive(req.Concurrency, 1),
+		Category:        req.Category,
+		WorkHref:        req.WorkHref,
+		Source:          req.Source,
+		Limit:           defaultNonNegative(req.Limit, 0),
+		Force:           req.Force,
+		DBPath:          s.cfg.DBPath,
+		Debug:           req.Debug,
+		Timeout:         timeout,
+		ContinueOnError: defaultBool(req.ContinueOnError, true),
+		RPS:             defaultFloat64(req.RPS, config.DefaultCrawlRateRPS),
+		Burst:           defaultPositive(req.Burst, config.DefaultCrawlRateBurst),
+		MaxRetries:      defaultNonNegative(req.Retries, 3),
+		Proxies:         req.Proxies,
+		Concurrency:     defaultPositive(req.Concurrency, 1),
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "submit detail task", err)
@@ -614,20 +642,24 @@ func (s *Server) handleSubmitDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 type reviewTaskRequest struct {
-	Category    string `json:"category"`
-	WorkHref    string `json:"work_href"`
-	Limit       int    `json:"limit"`
-	Force       bool   `json:"force"`
-	Concurrency int    `json:"concurrency"`
-	ReviewType  string `json:"review_type"`
-	Sentiment   string `json:"sentiment"`
-	Sort        string `json:"sort"`
-	Platform    string `json:"platform"`
-	PageSize    int    `json:"page_size"`
-	MaxPages    int    `json:"max_pages"`
-	Debug       bool   `json:"debug"`
-	Retries     int    `json:"retries"`
-	Proxies     string `json:"proxies"`
+	Category        string  `json:"category"`
+	WorkHref        string  `json:"work_href"`
+	Limit           int     `json:"limit"`
+	Force           bool    `json:"force"`
+	Concurrency     int     `json:"concurrency"`
+	ReviewType      string  `json:"review_type"`
+	Sentiment       string  `json:"sentiment"`
+	Sort            string  `json:"sort"`
+	Platform        string  `json:"platform"`
+	PageSize        int     `json:"page_size"`
+	MaxPages        int     `json:"max_pages"`
+	Timeout         string  `json:"timeout"`
+	ContinueOnError *bool   `json:"continue_on_error"`
+	RPS             float64 `json:"rps"`
+	Burst           int     `json:"burst"`
+	Debug           bool    `json:"debug"`
+	Retries         int     `json:"retries"`
+	Proxies         string  `json:"proxies"`
 }
 
 func (s *Server) handleSubmitReview(w http.ResponseWriter, r *http.Request) {
@@ -645,22 +677,32 @@ func (s *Server) handleSubmitReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	timeout, err := parseOptionalDuration(req.Timeout, config.DefaultCrawlCommandTimeout)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "submit review task", err)
+		return
+	}
+
 	cfg, err := config.BuildReviewCommandConfig(config.ReviewCommandOptions{
-		Category:    req.Category,
-		WorkHref:    req.WorkHref,
-		Limit:       defaultNonNegative(req.Limit, 0),
-		Force:       req.Force,
-		Concurrency: defaultPositive(req.Concurrency, 1),
-		ReviewType:  firstNonEmptyString(req.ReviewType, "all"),
-		Sentiment:   firstNonEmptyString(req.Sentiment, "all"),
-		Sort:        req.Sort,
-		Platform:    req.Platform,
-		PageSize:    defaultPositive(req.PageSize, 20),
-		MaxPages:    defaultNonNegative(req.MaxPages, 0),
-		DBPath:      s.cfg.DBPath,
-		Debug:       req.Debug,
-		MaxRetries:  defaultNonNegative(req.Retries, 3),
-		Proxies:     req.Proxies,
+		Category:        req.Category,
+		WorkHref:        req.WorkHref,
+		Limit:           defaultNonNegative(req.Limit, 0),
+		Force:           req.Force,
+		Concurrency:     defaultPositive(req.Concurrency, 1),
+		ReviewType:      firstNonEmptyString(req.ReviewType, "all"),
+		Sentiment:       firstNonEmptyString(req.Sentiment, "all"),
+		Sort:            req.Sort,
+		Platform:        req.Platform,
+		PageSize:        defaultPositive(req.PageSize, 20),
+		MaxPages:        defaultNonNegative(req.MaxPages, 0),
+		DBPath:          s.cfg.DBPath,
+		Debug:           req.Debug,
+		Timeout:         timeout,
+		ContinueOnError: defaultBool(req.ContinueOnError, true),
+		RPS:             defaultFloat64(req.RPS, config.DefaultCrawlRateRPS),
+		Burst:           defaultPositive(req.Burst, config.DefaultCrawlRateBurst),
+		MaxRetries:      defaultNonNegative(req.Retries, 3),
+		Proxies:         req.Proxies,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "submit review task", err)
@@ -772,4 +814,37 @@ func defaultNonNegative(value int, fallback int) int {
 		return value
 	}
 	return fallback
+}
+
+func defaultZeroOrPositive(value int, fallback int) int {
+	if value >= 0 {
+		return value
+	}
+	return fallback
+}
+
+func defaultFloat64(value float64, fallback float64) float64 {
+	if value > 0 {
+		return value
+	}
+	return fallback
+}
+
+func defaultBool(value *bool, fallback bool) bool {
+	if value == nil {
+		return fallback
+	}
+	return *value
+}
+
+func parseOptionalDuration(raw string, fallback time.Duration) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fallback, nil
+	}
+	duration, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration %q", raw)
+	}
+	return duration, nil
 }

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/time/rate"
 
 	"github.com/GoFurry/metacritic-harvester/internal/app"
 	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/GoFurry/metacritic-harvester/internal/crawler"
 	"github.com/GoFurry/metacritic-harvester/internal/domain"
 )
 
@@ -154,19 +156,21 @@ func (m *TaskManager) runListTask(id string, cfg config.ListCommandConfig) {
 	defer unlock()
 
 	m.markRunning(id)
-	ctx, cancel := context.WithTimeout(m.rootCtx, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(m.rootCtx, cfg.Timeout)
 	defer cancel()
 
 	service := m.newListService(app.ListServiceConfig{
-		BaseURL:        firstNonEmptyString(m.cfg.BaseURL, config.DefaultBaseURL),
-		BackendBaseURL: firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
-		Source:         cfg.Source,
-		DBPath:         cfg.DBPath,
-		Debug:          cfg.Debug,
-		MaxRetries:     cfg.MaxRetries,
-		ProxyURLs:      cfg.ProxyURLs,
-		RunSource:      "serve",
-		TaskName:       fmt.Sprintf("%s-%s", cfg.Task.Category, cfg.Task.Metric),
+		BaseURL:         firstNonEmptyString(m.cfg.BaseURL, config.DefaultBaseURL),
+		BackendBaseURL:  firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
+		Source:          cfg.Source,
+		RuntimePolicy:   serveRuntimePolicy(cfg.RPS, cfg.Burst),
+		DBPath:          cfg.DBPath,
+		Debug:           cfg.Debug,
+		ContinueOnError: cfg.ContinueOnError,
+		MaxRetries:      cfg.MaxRetries,
+		ProxyURLs:       cfg.ProxyURLs,
+		RunSource:       "serve",
+		TaskName:        fmt.Sprintf("%s-%s", cfg.Task.Category, cfg.Task.Metric),
 	})
 
 	result, err := service.Run(ctx, cfg.Task)
@@ -188,17 +192,19 @@ func (m *TaskManager) runDetailTask(id string, cfg config.DetailCommandConfig) {
 	defer unlock()
 
 	m.markRunning(id)
-	ctx, cancel := context.WithTimeout(m.rootCtx, 30*time.Minute)
+	ctx, cancel := context.WithTimeout(m.rootCtx, cfg.Timeout)
 	defer cancel()
 
 	service := m.newDetailService(app.DetailServiceConfig{
-		BaseURL:        firstNonEmptyString(m.cfg.BaseURL, config.DefaultBaseURL),
-		BackendBaseURL: firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
-		Source:         cfg.Source,
-		DBPath:         cfg.DBPath,
-		Debug:          cfg.Debug,
-		MaxRetries:     cfg.MaxRetries,
-		ProxyURLs:      cfg.ProxyURLs,
+		BaseURL:         firstNonEmptyString(m.cfg.BaseURL, config.DefaultBaseURL),
+		BackendBaseURL:  firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
+		Source:          cfg.Source,
+		RuntimePolicy:   serveRuntimePolicy(cfg.RPS, cfg.Burst),
+		DBPath:          cfg.DBPath,
+		Debug:           cfg.Debug,
+		ContinueOnError: cfg.ContinueOnError,
+		MaxRetries:      cfg.MaxRetries,
+		ProxyURLs:       cfg.ProxyURLs,
 	})
 
 	result, err := service.Run(ctx, cfg.Task)
@@ -223,15 +229,17 @@ func (m *TaskManager) runReviewTask(id string, cfg config.ReviewCommandConfig) {
 	defer unlock()
 
 	m.markRunning(id)
-	ctx, cancel := context.WithTimeout(m.rootCtx, 30*time.Minute)
+	ctx, cancel := context.WithTimeout(m.rootCtx, cfg.Timeout)
 	defer cancel()
 
 	service := m.newReviewService(app.ReviewServiceConfig{
-		BaseURL:    firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
-		DBPath:     cfg.DBPath,
-		Debug:      cfg.Debug,
-		MaxRetries: cfg.MaxRetries,
-		ProxyURLs:  cfg.ProxyURLs,
+		BaseURL:         firstNonEmptyString(m.cfg.BackendBaseURL, config.DefaultBackendBaseURL),
+		RuntimePolicy:   serveRuntimePolicy(cfg.RPS, cfg.Burst),
+		DBPath:          cfg.DBPath,
+		Debug:           cfg.Debug,
+		ContinueOnError: cfg.ContinueOnError,
+		MaxRetries:      cfg.MaxRetries,
+		ProxyURLs:       cfg.ProxyURLs,
 	})
 
 	result, err := service.Run(ctx, cfg.Task)
@@ -384,4 +392,11 @@ func primaryBatchDBPath(tasks []config.BatchTaskConfig) string {
 		}
 	}
 	return ""
+}
+
+func serveRuntimePolicy(rps float64, burst int) *crawler.HTTPRuntimePolicy {
+	return &crawler.HTTPRuntimePolicy{
+		RateLimit: rate.Limit(rps),
+		RateBurst: burst,
+	}
 }
