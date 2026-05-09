@@ -7,6 +7,12 @@
 ![Release](https://img.shields.io/github/v/release/GoFurry/metacritic-harvester?style=flat&color=blue)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GoFurry/metacritic-harvester)](https://goreportcard.com/report/github.com/GoFurry/metacritic-harvester)
 
+## 成功抓取截图
+
+下图展示了抓取成功后，包含完整数据的压缩包截图。
+
+![抓取成功压缩包截图](../260509.png)
+
 一个本地优先的 Go 工具集，用来采集公开的 Metacritic 榜单、详情和评论数据，并写入 SQLite。
 
 ## 它能做什么

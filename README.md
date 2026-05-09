@@ -9,6 +9,12 @@ A local-first Go toolkit for collecting public Metacritic list, detail, and revi
 ![Release](https://img.shields.io/github/v/release/GoFurry/metacritic-harvester?style=flat&color=blue)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GoFurry/metacritic-harvester)](https://goreportcard.com/report/github.com/GoFurry/metacritic-harvester)
 
+## Successful Crawl Snapshot
+
+The following screenshot shows a successfully generated compressed package containing the complete harvested dataset.
+
+![Successful crawl package snapshot](./docs/260509.png)
+
 ## What it does
 
 `metacritic-harvester` is built for collecting and working with public Metacritic data locally.
