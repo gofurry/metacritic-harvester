@@ -9,6 +9,10 @@ set "ENTRY=./cmd/metacritic-harvester"
 set "OUTPUT_ROOT=%ROOT_DIR%output"
 set "RELEASE_ROOT=%OUTPUT_ROOT%\releases"
 set "LDFLAGS=-s -w -buildid="
+set "WINDOWS_ICON=%ROOT_DIR%docs\icons\metacritic-harvester-wolf.ico"
+set "WINDOWS_RSRC_TOOL=github.com/akavel/rsrc@v0.10.2"
+set "WINDOWS_RSRC_AMD64=%ROOT_DIR%cmd\metacritic-harvester\rsrc_windows_amd64.syso"
+set "WINDOWS_RSRC_ARM64=%ROOT_DIR%cmd\metacritic-harvester\rsrc_windows_arm64.syso"
 
 if not exist "%OUTPUT_ROOT%" mkdir "%OUTPUT_ROOT%"
 if exist "%RELEASE_ROOT%" rmdir /s /q "%RELEASE_ROOT%"
@@ -18,12 +22,15 @@ echo Building release binaries for %APP_NAME%
 echo Output: %RELEASE_ROOT%
 echo.
 
+call :prepare_windows_icon || goto :fail
 call :build_target windows amd64 .exe || goto :fail
 call :build_target windows arm64 .exe || goto :fail
 call :build_target linux amd64 "" || goto :fail
 call :build_target linux arm64 "" || goto :fail
 call :build_target darwin amd64 "" || goto :fail
 call :build_target darwin arm64 "" || goto :fail
+
+call :cleanup_windows_icon
 
 powershell -NoProfile -Command ^
   "$ErrorActionPreference='Stop';" ^
@@ -35,6 +42,24 @@ if errorlevel 1 goto :fail
 echo.
 echo Release binaries created successfully:
 dir /b "%RELEASE_ROOT%"
+exit /b 0
+
+:prepare_windows_icon
+if not exist "%WINDOWS_ICON%" (
+  echo Windows icon not found: %WINDOWS_ICON%
+  exit /b 1
+)
+
+echo [windows] embedding icon from %WINDOWS_ICON%
+go run %WINDOWS_RSRC_TOOL% -arch amd64 -ico "%WINDOWS_ICON%" -o "%WINDOWS_RSRC_AMD64%"
+if errorlevel 1 exit /b 1
+go run %WINDOWS_RSRC_TOOL% -arch arm64 -ico "%WINDOWS_ICON%" -o "%WINDOWS_RSRC_ARM64%"
+if errorlevel 1 exit /b 1
+exit /b 0
+
+:cleanup_windows_icon
+if exist "%WINDOWS_RSRC_AMD64%" del /q "%WINDOWS_RSRC_AMD64%"
+if exist "%WINDOWS_RSRC_ARM64%" del /q "%WINDOWS_RSRC_ARM64%"
 exit /b 0
 
 :build_target
@@ -53,6 +78,7 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :fail
+call :cleanup_windows_icon
 echo.
 echo Build failed.
 exit /b 1
