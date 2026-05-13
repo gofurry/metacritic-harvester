@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoFurry/metacritic-harvester/internal/app"
+	"github.com/gofurry/metacritic-harvester/internal/app"
 )
 
 func TestCrawlBatchCommandOutputsSummaries(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 func newReviewCompareCommand() *cobra.Command {

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/crawler"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/crawler"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 	"golang.org/x/time/rate"
 )
 

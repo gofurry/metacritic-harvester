@@ -9,7 +9,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func parseNuxtDetail(category domain.Category, workHref string, doc *goquery.Document, detail *domain.WorkDetail) error {

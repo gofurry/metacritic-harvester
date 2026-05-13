@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	assets "github.com/GoFurry/metacritic-harvester"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	assets "github.com/gofurry/metacritic-harvester"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func TestSchemaCreatesWorkDetailsAndDetailStateMetadata(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	assets "github.com/GoFurry/metacritic-harvester"
+	assets "github.com/gofurry/metacritic-harvester"
 )
 
 func Open(ctx context.Context, path string) (*sql.DB, error) {

@@ -1,4 +1,4 @@
-module github.com/GoFurry/metacritic-harvester
+module github.com/gofurry/metacritic-harvester
 
 go 1.26.0
 

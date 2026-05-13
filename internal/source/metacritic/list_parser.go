@@ -7,7 +7,7 @@ import (
 
 	"github.com/gocolly/colly/v2"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 var dateRe = regexp.MustCompile(`\b[A-Z][a-z]{2} \d{1,2}, \d{4}\b`)

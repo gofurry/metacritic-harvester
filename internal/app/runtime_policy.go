@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/crawler"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/crawler"
 	"golang.org/x/time/rate"
 )
 

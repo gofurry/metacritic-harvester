@@ -12,9 +12,9 @@ import (
 
 	"github.com/bytedance/sonic"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
-	sqlcgen "github.com/GoFurry/metacritic-harvester/internal/storage/sqlcgen"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
+	sqlcgen "github.com/gofurry/metacritic-harvester/internal/storage/sqlcgen"
 )
 
 const (

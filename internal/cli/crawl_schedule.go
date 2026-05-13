@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/GoFurry/metacritic-harvester/internal/app"
-	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/app"
+	"github.com/gofurry/metacritic-harvester/internal/config"
 )
 
 func newCrawlScheduleCommand() *cobra.Command {

@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 
-	"github.com/GoFurry/metacritic-harvester/internal/app"
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/crawler"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/app"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/crawler"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 type TaskStatus string

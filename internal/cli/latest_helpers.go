@@ -16,9 +16,9 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/spf13/pflag"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
-	sqlcgen "github.com/GoFurry/metacritic-harvester/internal/storage/sqlcgen"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
+	sqlcgen "github.com/gofurry/metacritic-harvester/internal/storage/sqlcgen"
 )
 
 func openRepository(ctx context.Context, dbPath string, checkpoint bool) (*storage.Repository, func() error, error) {

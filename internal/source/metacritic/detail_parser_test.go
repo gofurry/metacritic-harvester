@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func TestParseGameDetail(t *testing.T) {

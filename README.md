@@ -6,8 +6,8 @@ A local-first Go toolkit for collecting public Metacritic list, detail, and revi
 
 ![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Release](https://img.shields.io/github/v/release/GoFurry/metacritic-harvester?style=flat&color=blue)
-[![Go Report Card](https://goreportcard.com/badge/github.com/GoFurry/metacritic-harvester)](https://goreportcard.com/report/github.com/GoFurry/metacritic-harvester)
+![Release](https://img.shields.io/github/v/release/gofurry/metacritic-harvester?style=flat&color=blue)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gofurry/metacritic-harvester)](https://goreportcard.com/report/github.com/gofurry/metacritic-harvester)
 
 ## Successful Crawl Snapshot
 

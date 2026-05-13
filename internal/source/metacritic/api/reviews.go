@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 type ReviewPageAPI struct {

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func BuildListURL(category domain.Category, metric domain.Metric, filter domain.Filter, page int) string {

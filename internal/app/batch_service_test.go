@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func TestBatchRunResultError(t *testing.T) {

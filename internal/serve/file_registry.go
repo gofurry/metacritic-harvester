@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/config"
 )
 
 type managedFileView struct {

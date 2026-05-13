@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	serveapp "github.com/GoFurry/metacritic-harvester/internal/serve"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	serveapp "github.com/gofurry/metacritic-harvester/internal/serve"
 )
 
 func newServeCommand() *cobra.Command {

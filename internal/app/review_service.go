@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/crawler"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	reviewapi "github.com/GoFurry/metacritic-harvester/internal/source/metacritic/api"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/crawler"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	reviewapi "github.com/gofurry/metacritic-harvester/internal/source/metacritic/api"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 const reviewStaleRunningThreshold = 15 * time.Minute

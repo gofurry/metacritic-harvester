@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	sqlcgen "github.com/GoFurry/metacritic-harvester/internal/storage/sqlcgen"
+	sqlcgen "github.com/gofurry/metacritic-harvester/internal/storage/sqlcgen"
 )
 
 type healthView struct {

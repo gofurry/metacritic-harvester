@@ -3,7 +3,7 @@ package serve
 import (
 	"strings"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/config"
 )
 
 type batchTaskSpecView struct {

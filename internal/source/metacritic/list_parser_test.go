@@ -9,7 +9,7 @@ import (
 
 	"github.com/gocolly/colly/v2"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func TestParseListItemFixtures(t *testing.T) {

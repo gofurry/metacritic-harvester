@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/GoFurry/metacritic-harvester/internal/cli"
+	"github.com/gofurry/metacritic-harvester/internal/cli"
 )
 
 func main() {

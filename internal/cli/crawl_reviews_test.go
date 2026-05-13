@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/app"
-	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/app"
+	"github.com/gofurry/metacritic-harvester/internal/config"
 )
 
 func TestCrawlReviewsCommandParsesFlags(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
 )
 
 func TestRepositoryUpsertAndInsert(t *testing.T) {

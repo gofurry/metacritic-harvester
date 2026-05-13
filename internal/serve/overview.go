@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 type fetchStateSummaryView struct {

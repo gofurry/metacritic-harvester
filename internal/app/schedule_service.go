@@ -9,7 +9,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/config"
 )
 
 type scheduleBatchRunner interface {

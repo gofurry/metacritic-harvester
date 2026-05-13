@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 func newLatestCompareCommand() *cobra.Command {

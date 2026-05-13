@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	sqlcgen "github.com/GoFurry/metacritic-harvester/internal/storage/sqlcgen"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	sqlcgen "github.com/gofurry/metacritic-harvester/internal/storage/sqlcgen"
 )
 
 type ListRepository interface {

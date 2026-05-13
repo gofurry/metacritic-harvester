@@ -16,12 +16,12 @@ import (
 	"github.com/gocolly/colly/v2"
 	"github.com/google/uuid"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/crawler"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	"github.com/GoFurry/metacritic-harvester/internal/source/metacritic"
-	detailapi "github.com/GoFurry/metacritic-harvester/internal/source/metacritic/api"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/crawler"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	"github.com/gofurry/metacritic-harvester/internal/source/metacritic"
+	detailapi "github.com/gofurry/metacritic-harvester/internal/source/metacritic/api"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 const detailStaleRunningThreshold = 15 * time.Minute

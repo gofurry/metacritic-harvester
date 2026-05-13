@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoFurry/metacritic-harvester/internal/config"
-	"github.com/GoFurry/metacritic-harvester/internal/domain"
-	listapi "github.com/GoFurry/metacritic-harvester/internal/source/metacritic/api"
-	"github.com/GoFurry/metacritic-harvester/internal/storage"
+	"github.com/gofurry/metacritic-harvester/internal/config"
+	"github.com/gofurry/metacritic-harvester/internal/domain"
+	listapi "github.com/gofurry/metacritic-harvester/internal/source/metacritic/api"
+	"github.com/gofurry/metacritic-harvester/internal/storage"
 )
 
 func TestListServiceRun(t *testing.T) {
